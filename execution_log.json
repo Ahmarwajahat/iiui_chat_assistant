@@ -1,0 +1,26 @@
+[
+  {
+    "test_id": 1,
+    "query": "tell me about AI fee and his eligibility and hostel fee",
+    "category": "High_Complexity",
+    "retrieved_docs_count": 3,
+    "file_audit_results": {
+      "title": "BS Artificial Intelligence",
+      "duration_years": 4,
+      "semesters": 8,
+      "credit_hours": 130,
+      "admission_fee_pkr": 25000,
+      "tuition_fee_per_semester_pkr": 120000,
+      "total_estimated_fee_pkr": 985000,
+      "total_seats": 60,
+      "min_eligibility_marks_pct": 50,
+      "math_deficiency_allowed": true,
+      "entry_test": "IIUI Entry Test / NAT",
+      "faculty": "Faculty of Computer Sciences"
+    },
+    "quality_score": 0.95,
+    "retry_count": 0,
+    "error_logs": [],
+    "generated_response": "According to the provided audit data, here's the information about the BS Artificial Intelligence program:\n\n**Fee Structure:**\n- Admission Fee: PKR 25,000 (one-time payment, non-refundable)\n- Tuition Fee per Semester: PKR 120,000\n- Total Estimated Fee for the program: PKR 985,000\n\n**Eligibility:**\n- Minimum Eligibility Marks: 50%\n- Math Deficiency is allowed\n- Entry Test: IIUI Entry Test / NAT\n\n**Hostel Fee:**\nUnfortunately, the provided audit data does not include information about the hostel fee. For accurate and up-to-date information about hostel fees, I recommend visiting the university's official website or contacting their admission office directly."
+  }
+]
