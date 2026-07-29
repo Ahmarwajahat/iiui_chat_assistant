@@ -2,24 +2,33 @@
 
 import { useState, useEffect, useRef } from "react";
 import { 
-  Send, Bot, User, Sparkles, Copy, Check, RotateCcw, Trash2, 
-  ArrowUpRight, CheckCircle2, FileText, Download, FileDown, ShieldCheck, ExternalLink, HelpCircle,
-  Database, Layers, Award, BookOpen, Search, Zap, Compass, Cpu
+  Send, User, Copy, Check, RotateCcw, Trash2, 
+  ArrowUpRight, CheckCircle2, FileText, Download, FileDown, ShieldCheck, 
+  Search, BookOpen, GraduationCap, Building2, CreditCard, PhoneCall, HelpCircle,
+  Sparkles, CheckCircle, ChevronRight, Info
 } from "lucide-react";
 import { sendChatMessage, ChatMessage } from "@/lib/api";
 import jsPDF from "jspdf";
 
-const SUGGESTED_QUESTIONS = [
-  { text: "How can I apply for BS AI in Admissions 2026?", icon: "🎓", tag: "Admissions", desc: "Eligibility criteria & required entry tests" },
-  { text: "What is the fee structure for BS CS?", icon: "💳", tag: "Fee Details", desc: "Tuition, admission & total semester dues" },
-  { text: "Tell me about hostel facilities & semester dues.", icon: "🏢", tag: "Hostels", desc: "Room allotment & hostel fee details" },
-  { text: "What documents are required for admission?", icon: "📄", tag: "Requirements", desc: "Matric, FSC, CNIC & photograph rules" },
-  { text: "Where is the Faculty of Engineering?", icon: "🏛️", tag: "Campus Guide", desc: "Department locations & office hours" },
-  { text: "What is the fee structure in Pharm-D?", icon: "💊", tag: "Pharmacy", desc: "5-Year Pharm-D tuition & lab charges" },
+const CATEGORY_TABS = [
+  { id: "all", label: "All Info", icon: BookOpen },
+  { id: "admissions", label: "Admissions 2026", icon: GraduationCap },
+  { id: "fees", label: "Program Fees", icon: CreditCard },
+  { id: "hostels", label: "Hostels & Dues", icon: Building2 },
+  { id: "contact", label: "Contact Desk", icon: PhoneCall },
+];
+
+const PRESET_QUERIES = [
+  { text: "How can I apply for BS AI in Admissions 2026?", category: "admissions", tag: "BS AI", icon: "🎓" },
+  { text: "What is the fee structure for BS CS?", category: "fees", tag: "BS CS Fee", icon: "💻" },
+  { text: "What is the fee structure in BSAI-2026-2.pdf?", category: "fees", tag: "BS AI Fee", icon: "💳" },
+  { text: "What are the hostel allotment rules & fees?", category: "hostels", tag: "Hostels", icon: "🏢" },
+  { text: "What documents are required for admission?", category: "admissions", tag: "Required Docs", icon: "📄" },
+  { text: "What is the fee structure for 5-Year Pharm-D?", category: "fees", tag: "Pharm-D", icon: "💊" },
 ];
 
 /**
- * Custom Markdown Parser for 3D Visual Excellence
+ * Custom Markdown Parser for Handcrafted University Portal
  */
 function MarkdownRenderer({ content }: { content: string }) {
   const lines = content.split("\n");
@@ -32,12 +41,12 @@ function MarkdownRenderer({ content }: { content: string }) {
   const flushTable = (key: number) => {
     if (tableHeader.length > 0) {
       elements.push(
-        <div key={`table-${key}`} className="overflow-x-auto my-3 rounded-xl border border-slate-200 shadow-md shadow-slate-100">
+        <div key={`table-${key}`} className="overflow-x-auto my-3 rounded-xl border border-slate-200 shadow-2xs">
           <table className="min-w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gradient-to-r from-[#0B6E4F] via-[#08563d] to-[#14B8A6] text-white">
+              <tr className="bg-[#0B6E4F] text-white">
                 {tableHeader.map((th, i) => (
-                  <th key={i} className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider">
+                  <th key={i} className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider">
                     {th.trim()}
                   </th>
                 ))}
@@ -47,7 +56,7 @@ function MarkdownRenderer({ content }: { content: string }) {
               {tableRows.map((row, rIdx) => (
                 <tr key={rIdx} className={rIdx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-3.5 py-2 text-[11px] text-slate-700 font-medium">
+                    <td key={cIdx} className="px-4 py-2 text-[11px] text-slate-700 font-medium">
                       {cell.trim().replace(/\*\*(.*?)\*\*/g, "$1")}
                     </td>
                   ))}
@@ -90,8 +99,8 @@ function MarkdownRenderer({ content }: { content: string }) {
     if (trimmed.startsWith("###") || trimmed.startsWith("##")) {
       const headingText = trimmed.replace(/^#+\s*/, "");
       elements.push(
-        <div key={idx} className="flex items-center gap-2 mt-4 mb-2 pb-1.5 border-b border-emerald-100">
-          <span className="w-1.5 h-4 bg-gradient-to-b from-[#0B6E4F] to-[#14B8A6] rounded-full shadow-xs" />
+        <div key={idx} className="flex items-center gap-2 mt-4 mb-2 pb-1.5 border-b border-slate-200">
+          <span className="w-1.5 h-4 bg-[#0B6E4F] rounded-full" />
           <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">{headingText}</h3>
         </div>
       );
@@ -111,7 +120,7 @@ function MarkdownRenderer({ content }: { content: string }) {
       const listText = trimmed.replace(/^[*•-]\s*/, "");
       elements.push(
         <div key={idx} className="flex items-start gap-2.5 my-1.5 pl-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0B6E4F] shrink-0 mt-1.5 shadow-xs shadow-[#0B6E4F]/40" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#0B6E4F] shrink-0 mt-1.5" />
           <span className="text-xs text-slate-700 leading-relaxed font-medium">
             {formatInlineFormatting(listText)}
           </span>
@@ -150,7 +159,7 @@ function formatInlineFormatting(text: string) {
     }
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={index} className="px-1.5 py-0.5 rounded bg-emerald-50 text-[#0B6E4F] font-mono text-[11px] border border-emerald-200/80 font-bold shadow-2xs">
+        <code key={index} className="px-1.5 py-0.5 rounded bg-slate-100 text-[#0B6E4F] font-mono text-[11px] border border-slate-200 font-bold">
           {part.slice(1, -1)}
         </code>
       );
@@ -159,15 +168,15 @@ function formatInlineFormatting(text: string) {
   });
 }
 
-export default function IIUIAIChatPage() {
+export default function IIUIPortalPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputQuery, setInputQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState("all");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
@@ -207,7 +216,7 @@ export default function IIUIAIChatPage() {
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         sender: "ai",
-        text: "I'm having trouble connecting to the IIUI AI Backend server. Please ensure the Python API server is active on `http://127.0.0.1:8000`.",
+        text: "I'm having trouble connecting to the IIUI Helpdesk server. Please ensure the backend server is active on `http://127.0.0.1:8000`.",
         confidence_score: 0.5,
         timestamp: Date.now(),
       };
@@ -235,7 +244,6 @@ export default function IIUIAIChatPage() {
     setMessages([]);
   };
 
-  // Export Single Answer PDF
   const handleExportSingleAnswerPDF = (answerText: string) => {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
@@ -243,7 +251,7 @@ export default function IIUIAIChatPage() {
     doc.text("IBADAT International University, Islamabad (IIUI)", 14, 20);
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.text(`Official AI Assistant Response Transcript - ${new Date().toLocaleDateString()}`, 14, 27);
+    doc.text(`Official Student Helpdesk Transcript - ${new Date().toLocaleDateString()}`, 14, 27);
     doc.setLineWidth(0.5);
     doc.line(14, 30, 196, 30);
 
@@ -260,10 +268,9 @@ export default function IIUIAIChatPage() {
       yPos += 6;
     });
 
-    doc.save(`IIUI_AI_Response_${Date.now()}.pdf`);
+    doc.save(`IIUI_Helpdesk_Record_${Date.now()}.pdf`);
   };
 
-  // Export Full Chat PDF
   const handleExportFullChatPDF = () => {
     if (messages.length === 0) return;
     const doc = new jsPDF();
@@ -272,7 +279,7 @@ export default function IIUIAIChatPage() {
     doc.text("IBADAT International University, Islamabad (IIUI)", 14, 20);
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.text(`Full AI Conversation Log - ${new Date().toLocaleDateString()}`, 14, 27);
+    doc.text(`Complete Information Desk Session Log - ${new Date().toLocaleDateString()}`, 14, 27);
     doc.setLineWidth(0.5);
     doc.line(14, 30, 196, 30);
 
@@ -301,336 +308,324 @@ export default function IIUIAIChatPage() {
       yPos += 4;
     });
 
-    doc.save(`IIUI_Full_Chat_Log_${Date.now()}.pdf`);
+    doc.save(`IIUI_Session_Log_${Date.now()}.pdf`);
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-3d-scene selection:bg-[#0B6E4F]/20 relative overflow-hidden">
-      
-      {/* FLOATING 3D BACKGROUND AMBIENT ORBS */}
-      <div className="absolute top-12 left-10 w-72 h-72 rounded-full bg-gradient-to-tr from-[#0B6E4F]/10 to-[#14B8A6]/10 blur-3xl pointer-events-none float-orb-1" />
-      <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-gradient-to-br from-[#14B8A6]/12 to-[#0B6E4F]/08 blur-3xl pointer-events-none float-orb-2" />
+  const filteredPresets = activeCategory === "all" 
+    ? PRESET_QUERIES 
+    : PRESET_QUERIES.filter(p => p.category === activeCategory);
 
-      {/* 1. TOP NAVIGATION HEADER */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 shadow-2xs">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
-            {/* 3D IIUI Emblem Icon */}
-            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0B6E4F] via-[#08563d] to-[#14B8A6] flex items-center justify-center text-white shadow-lg shadow-[#0B6E4F]/30 border-t border-white/40">
-              <Sparkles className="w-5.5 h-5.5 text-emerald-100 animate-pulse" />
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
-                <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
-              </div>
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-[#0B6E4F]/20">
+      
+      {/* 1. OFFICIAL IIUI BRANDED HEADER */}
+      <header className="sticky top-0 z-40 bg-[#0B6E4F] text-white shadow-md">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-lg text-emerald-200">
+              IIUI
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-black text-base sm:text-lg text-slate-900 tracking-tight">
-                  IBADAT International University
+                <h1 className="font-extrabold text-base sm:text-lg tracking-tight">
+                  IBADAT International University, Islamabad
                 </h1>
-                <span className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-black bg-emerald-50 text-[#0B6E4F] rounded-full border border-emerald-200 shadow-2xs">
-                  <Cpu className="w-3 h-3 text-[#0B6E4F]" />
-                  Qdrant Vector DB
+                <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-extrabold bg-white/15 text-emerald-100 rounded-md border border-white/20">
+                  Official Helpdesk
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium">
-                Official 3D AI Assistant & Knowledge Base (78 Fee Structure PDFs Included)
+              <p className="text-xs text-emerald-100 font-medium">
+                Student Information Desk & Grounded Knowledge Portal
               </p>
             </div>
           </div>
 
-          {/* Header Action Buttons */}
           <div className="flex items-center gap-2">
             {messages.length > 0 && (
               <>
                 <button
                   onClick={handleExportFullChatPDF}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-emerald-50 to-teal-50 text-[#0B6E4F] hover:from-emerald-100 hover:to-teal-100 border border-emerald-200 transition-all shadow-xs active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-[#0B6E4F] hover:bg-emerald-50 transition-all shadow-2xs"
                   title="Export entire chat conversation as PDF"
                 >
                   <FileDown className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Export Full Chat PDF</span>
+                  <span className="hidden sm:inline">Download Session PDF</span>
                 </button>
 
                 <button
                   onClick={handleClearChat}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-100 hover:bg-white/15 transition-all"
                   title="Clear conversation"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Clear</span>
+                  <span className="hidden sm:inline">Reset</span>
                 </button>
               </>
             )}
           </div>
+
+        </div>
+
+        {/* CATEGORY NAV TABS */}
+        <div className="bg-[#08563d] border-t border-emerald-800/60">
+          <div className="max-w-6xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-1">
+            {CATEGORY_TABS.map((tab) => {
+              const IconComp = tab.icon;
+              const isActive = activeCategory === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveCategory(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                    isActive
+                      ? "bg-white text-[#0B6E4F] shadow-2xs"
+                      : "text-emerald-100 hover:bg-white/10"
+                  }`}
+                >
+                  <IconComp className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
 
-      {/* 2. MAIN CHAT AREA */}
-      <main className="flex-1 max-w-5xl mx-auto w-full flex flex-col p-4 md:p-6 justify-between z-10">
+      {/* 2. MAIN LAYOUT (SIDEBAR + CONTENT FEED) */}
+      <main className="flex-1 max-w-6xl mx-auto w-full flex flex-col md:flex-row gap-6 p-4 md:p-6">
         
-        {/* Messages Feed or Empty State */}
-        <div className="flex-1 overflow-y-auto space-y-6 pb-6">
-          {messages.length === 0 ? (
-            <div className="py-8 sm:py-12 flex flex-col items-center justify-center text-center space-y-6">
-              
-              {/* 3D HERO EMBLEM CONTAINER */}
-              <div className="relative group cursor-pointer">
-                <div className="w-22 h-22 rounded-3xl bg-gradient-to-br from-[#0B6E4F] via-[#08563d] to-[#14B8A6] text-white flex items-center justify-center emblem-3d-glow border-t-2 border-white/40 transition-transform duration-500 group-hover:scale-105">
-                  <Bot className="w-11 h-11 text-emerald-100" />
+        {/* LEFT SIDEBAR: HELPDESK QUICK SEARCH & VERIFICATION STATS */}
+        <aside className="w-full md:w-72 shrink-0 space-y-4">
+          
+          {/* Quick Navigator Box */}
+          <div className="portal-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-[#0B6E4F]" />
+                Frequent Inquiries
+              </h3>
+              <span className="text-[10px] font-bold text-[#0B6E4F] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                {filteredPresets.length} Topics
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              {filteredPresets.map((preset, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendMessage(preset.text)}
+                  className="w-full text-left p-2.5 rounded-xl border border-slate-100 hover:border-[#0B6E4F] hover:bg-emerald-50/50 transition-all group flex items-start justify-between gap-2"
+                >
+                  <div className="space-y-0.5">
+                    <span className="px-1.5 py-0.2 rounded bg-slate-100 text-[9px] font-bold text-slate-600">
+                      {preset.tag}
+                    </span>
+                    <p className="text-xs font-bold text-slate-800 group-hover:text-[#0B6E4F] leading-snug">
+                      {preset.text}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#0B6E4F] shrink-0 mt-1" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Database Verification Info */}
+          <div className="portal-card p-4 space-y-2.5 bg-gradient-to-br from-emerald-50/60 to-white border-emerald-200/80">
+            <div className="flex items-center gap-2 text-[#0B6E4F]">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <h4 className="text-xs font-extrabold">Verified Document Base</h4>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+              System is synced with official IIUI records including 78 Fee Structure PDFs and academic guidelines.
+            </p>
+            <div className="pt-1 flex flex-wrap gap-2 text-[10px] font-extrabold text-[#0B6E4F]">
+              <span className="px-2 py-0.5 bg-white rounded border border-emerald-200">160 Vectors</span>
+              <span className="px-2 py-0.5 bg-white rounded border border-emerald-200">78 Fee PDFs</span>
+            </div>
+          </div>
+
+        </aside>
+
+        {/* RIGHT MAIN CONVERSATION FEED */}
+        <section className="flex-1 flex flex-col justify-between space-y-4">
+          
+          <div className="flex-1 overflow-y-auto space-y-4 min-h-[420px]">
+            {messages.length === 0 ? (
+              <div className="portal-card p-8 flex flex-col items-center justify-center text-center space-y-5 my-auto">
+                <div className="w-14 h-14 rounded-2xl bg-[#0B6E4F] text-white flex items-center justify-center font-black text-xl shadow-md">
+                  IIUI
                 </div>
-                <div className="absolute -top-2.5 -right-2.5 px-2.5 py-0.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-[10px] rounded-full shadow-md uppercase tracking-wider border border-amber-200">
-                  3D AI RAG 2026
-                </div>
-              </div>
 
-              <div className="max-w-lg space-y-2">
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight sm:text-3xl">
-                  Ask anything about IIUI Admissions, Fees & Hostels
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-medium">
-                  Strictly grounded in 160 official vector chunks & 78 program fee PDFs. Ultra-responsive 3D RAG platform.
-                </p>
-              </div>
-
-              {/* 3D CATEGORY TAG CHIPS */}
-              <div className="flex flex-wrap justify-center gap-2 max-w-xl">
-                {["🎓 Admissions 2026", "💳 Fee Structures", "🏢 Hostels", "📄 Eligibility", "🏛️ Faculties"].map((tag, i) => (
-                  <span key={i} className="px-3.5 py-1 bg-white/90 rounded-full border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs border-t-white hover:border-[#0B6E4F] transition-all">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              {/* 3D SUGGESTED QUESTIONS GRID */}
-              <div className="w-full max-w-3xl pt-2">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Compass className="w-3.5 h-3.5 text-[#0B6E4F]" />
-                    Popular Queries
+                <div className="max-w-md space-y-1.5">
+                  <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                    Welcome to IIUI Information Portal
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Select a topic from the left sidebar or enter your query below to retrieve official university records.
                   </p>
-                  <span className="text-[11px] font-extrabold text-[#0B6E4F] flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" /> One-click search
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-left">
-                  {SUGGESTED_QUESTIONS.map((sq, idx) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg pt-2 text-left">
+                  {PRESET_QUERIES.slice(0, 4).map((q, idx) => (
                     <button
                       key={idx}
-                      onClick={() => handleSendMessage(sq.text)}
-                      className="card-3d p-4 rounded-2xl text-left flex flex-col justify-between group cursor-pointer"
+                      onClick={() => handleSendMessage(q.text)}
+                      className="p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-[#0B6E4F] hover:bg-white transition-all text-xs font-bold text-slate-800 flex items-center justify-between group"
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xl p-2 bg-emerald-50/80 rounded-xl border border-emerald-100/80 shadow-2xs">{sq.icon}</span>
-                          <span className="px-2 py-0.5 text-[9px] font-black bg-[#0B6E4F]/10 text-[#0B6E4F] rounded-full border border-[#0B6E4F]/20 uppercase">
-                            {sq.tag}
-                          </span>
-                        </div>
-                        <p className="font-extrabold text-xs text-slate-900 group-hover:text-[#0B6E4F] transition-colors leading-snug">
-                          {sq.text}
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                          {sq.desc}
-                        </p>
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 group-hover:text-[#0B6E4F] transition-colors">
-                        <span>Query Assistant</span>
-                        <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-[#0B6E4F]" />
-                      </div>
+                      <span>{q.icon} {q.text}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0B6E4F] shrink-0" />
                     </button>
                   ))}
                 </div>
               </div>
-
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 md:gap-4 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-              >
-                {msg.sender === "ai" && (
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#0B6E4F] via-[#08563d] to-[#14B8A6] flex items-center justify-center text-white shrink-0 shadow-lg shadow-[#0B6E4F]/25 mt-1 border-t border-white/40">
-                    <Bot className="w-4.5 h-4.5" />
-                  </div>
-                )}
-
+            ) : (
+              messages.map((msg) => (
                 <div
-                  className={`max-w-3xl rounded-3xl p-5 text-xs leading-relaxed space-y-3.5 ${
-                    msg.sender === "user"
-                      ? "bg-gradient-to-r from-[#0B6E4F] to-[#08563d] text-white rounded-tr-xs font-semibold shadow-lg shadow-[#0B6E4F]/20 border-t border-white/20"
-                      : "card-3d text-slate-800 rounded-tl-xs"
-                  }`}
+                  key={msg.id}
+                  className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  {/* AI Badge Header */}
                   {msg.sender === "ai" && (
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-[10px] font-bold">
-                      <div className="flex items-center gap-1.5 text-[#0B6E4F]">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>IIUI Grounded AI Agent</span>
-                      </div>
-                      <span className="text-slate-400 font-mono">Qdrant Vector DB</span>
+                    <div className="w-8 h-8 rounded-xl bg-[#0B6E4F] text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs mt-1">
+                      IIUI
                     </div>
                   )}
 
-                  {msg.sender === "user" ? (
-                    <div className="whitespace-pre-wrap font-semibold text-sm leading-relaxed">{msg.text}</div>
-                  ) : (
-                    <MarkdownRenderer content={msg.text} />
-                  )}
-
-                  {/* AI Response Footer: Confidence Score Bar, Retrieved Qdrant Sources & Action Toolbar */}
-                  {msg.sender === "ai" && (
-                    <div className="pt-3 border-t border-slate-100 space-y-3">
-                      
-                      {/* GROUNDED CONFIDENCE PROGRESS BAR */}
-                      {msg.confidence_score !== undefined && (
-                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5 shadow-2xs">
-                          <div className="flex items-center justify-between text-[10px] font-bold">
-                            <span className="flex items-center gap-1 text-slate-700">
-                              <Award className="w-3.5 h-3.5 text-[#0B6E4F]" />
-                              Document Grounding Score:
-                            </span>
-                            <span className={`px-2.5 py-0.5 rounded-full font-black ${
-                              msg.confidence_score > 0.7 
-                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
-                                : msg.confidence_score > 0
-                                ? "bg-amber-100 text-amber-800 border border-amber-300"
-                                : "bg-slate-200 text-slate-700"
-                            }`}>
-                              {Math.round(msg.confidence_score * 100)}% Match
-                            </span>
-                          </div>
-
-                          {/* Visual Progress Bar */}
-                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden p-0.5 shadow-inner">
-                            <div 
-                              className="h-full bg-gradient-to-r from-[#0B6E4F] via-[#08563d] to-[#14B8A6] rounded-full transition-all duration-500 shadow-xs" 
-                              style={{ width: `${Math.round(msg.confidence_score * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* RETRIEVED QDRANT SOURCES CARDS */}
-                      {msg.sources && msg.sources.length > 0 && (
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                            <BookOpen className="w-3 h-3 text-[#0B6E4F]" />
-                            Retrieved Qdrant Documents ({msg.sources.length}):
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {msg.sources.map((src, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200/90 shadow-2xs hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
-                              >
-                                <span>📄</span>
-                                <span className="truncate max-w-[180px]">{src.filename || src.title}</span>
-                                {src.score && (
-                                  <span className="text-[9px] text-[#0B6E4F] bg-white px-1.5 py-0.2 rounded border border-emerald-200 font-extrabold">
-                                    {Math.round(src.score * 100)}%
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ACTION TOOLBAR */}
-                      <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
-                        <div className="flex items-center gap-3 text-slate-500">
-                          <button
-                            onClick={() => handleCopy(msg.text, msg.id)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-[#0B6E4F] transition-colors font-extrabold text-[11px]"
-                            title="Copy Answer Text"
-                          >
-                            {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedId === msg.id ? "Copied" : "Copy"}</span>
-                          </button>
-
-                          <button
-                            onClick={handleRegenerate}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-[#0B6E4F] transition-colors font-extrabold text-[11px]"
-                            title="Regenerate Answer"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>Regenerate</span>
-                          </button>
-                        </div>
-
-                        {/* Export Answer PDF Button */}
-                        <button
-                          onClick={() => handleExportSingleAnswerPDF(msg.text)}
-                          className="flex items-center gap-1.5 px-3 py-1.2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-[#0B6E4F] hover:to-[#08563d] text-[#0B6E4F] hover:text-white transition-all font-black text-[10px] border border-emerald-200 shadow-2xs active:scale-95"
-                          title="Download this response as PDF document"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>Export Answer PDF</span>
-                        </button>
+                  <div
+                    className={`max-w-2xl rounded-2xl p-4 sm:p-5 text-xs leading-relaxed space-y-3 ${
+                      msg.sender === "user"
+                        ? "bg-[#0B6E4F] text-white rounded-tr-xs font-semibold shadow-xs"
+                        : "portal-card text-slate-800 rounded-tl-xs"
+                    }`}
+                  >
+                    {/* Official Record Header */}
+                    {msg.sender === "ai" && (
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-[10px] font-bold">
+                        <span className="text-[#0B6E4F] flex items-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          Official IIUI Record Answer
+                        </span>
+                        {msg.confidence_score !== undefined && (
+                          <span className="text-slate-500 font-mono">
+                            Match Score: {Math.round(msg.confidence_score * 100)}%
+                          </span>
+                        )}
                       </div>
+                    )}
 
-                    </div>
-                  )}
-                </div>
+                    {msg.sender === "user" ? (
+                      <div className="whitespace-pre-wrap font-semibold text-sm">{msg.text}</div>
+                    ) : (
+                      <MarkdownRenderer content={msg.text} />
+                    )}
 
-                {msg.sender === "user" && (
-                  <div className="w-9 h-9 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-md mt-1 font-extrabold text-xs border-t border-white/20">
-                    <User className="w-4.5 h-4.5" />
+                    {/* Sources & Action Toolbar */}
+                    {msg.sender === "ai" && (
+                      <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                        
+                        {msg.sources && msg.sources.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-extrabold uppercase text-slate-400">
+                              Retrieved Reference Files:
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {msg.sources.map((src, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200"
+                                >
+                                  📄 {src.filename || src.title}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
+                          <div className="flex items-center gap-3 text-slate-500">
+                            <button
+                              onClick={() => handleCopy(msg.text, msg.id)}
+                              className="flex items-center gap-1 font-bold text-[11px] hover:text-[#0B6E4F] transition-colors"
+                              title="Copy Answer Text"
+                            >
+                              {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span>{copiedId === msg.id ? "Copied" : "Copy"}</span>
+                            </button>
+
+                            <button
+                              onClick={handleRegenerate}
+                              className="flex items-center gap-1 font-bold text-[11px] hover:text-[#0B6E4F] transition-colors"
+                              title="Regenerate Answer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Regenerate</span>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => handleExportSingleAnswerPDF(msg.text)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-[#0B6E4F] hover:bg-[#0B6E4F] hover:text-white transition-all font-bold text-[10px] border border-emerald-200"
+                            title="Download response PDF"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>Export Record PDF</span>
+                          </button>
+                        </div>
+
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))
-          )}
 
-          {/* Typing Indicator */}
-          {isLoading && (
-            <div className="flex gap-3 items-center text-xs text-slate-500">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#0B6E4F] to-[#14B8A6] flex items-center justify-center text-white shrink-0 shadow-md border-t border-white/40">
-                <Bot className="w-4.5 h-4.5 animate-bounce" />
-              </div>
-              <div className="px-5 py-3.5 card-3d rounded-2xl flex items-center gap-2.5 shadow-sm">
-                <span className="font-bold text-slate-700">IIUI AI is querying Qdrant Cloud vectors...</span>
-                <div className="flex items-center gap-1">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
+                  {msg.sender === "user" && (
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs mt-1">
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+
+            {isLoading && (
+              <div className="flex gap-3 items-center text-xs text-slate-500">
+                <div className="w-8 h-8 rounded-xl bg-[#0B6E4F] text-white flex items-center justify-center shrink-0 font-bold text-xs">
+                  IIUI
+                </div>
+                <div className="portal-card px-4 py-3 flex items-center gap-2">
+                  <span className="font-bold text-slate-700">Retrieving official records...</span>
+                  <div className="flex items-center gap-1">
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div ref={messagesEndRef} />
-        </div>
+            <div ref={messagesEndRef} />
+          </div>
 
-        {/* 3. INPUT AREA */}
-        <div className="pt-2 z-20">
+          {/* INPUT BAR */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-300/90 shadow-xl shadow-slate-200/60 focus-within:border-[#0B6E4F] focus-within:ring-4 focus-within:ring-[#0B6E4F]/15 transition-all p-2.5"
+            className="portal-card p-2 flex items-center gap-2 focus-within:border-[#0B6E4F] focus-within:ring-2 focus-within:ring-[#0B6E4F]/20 transition-all"
           >
-            <div className="pl-2.5 pr-1 text-slate-400">
-              <Search className="w-4 h-4 text-[#0B6E4F]" />
-            </div>
             <input
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Ask anything about IBADAT International University admissions, fee structures, hostels..."
-              className="w-full px-2 py-1 text-xs sm:text-sm outline-none bg-transparent text-slate-900 placeholder-slate-400 font-semibold"
+              placeholder="Query admissions, fee structure, hostel allocation, requirements..."
+              className="w-full px-3 py-2 text-xs sm:text-sm outline-none bg-transparent text-slate-900 placeholder-slate-400 font-medium"
             />
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {messages.length > 0 && (
                 <button
                   type="button"
                   onClick={handleClearChat}
-                  className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
+                  className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
                   title="Clear Chat"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -639,24 +634,23 @@ export default function IIUIAIChatPage() {
               <button
                 type="submit"
                 disabled={!inputQuery.trim() || isLoading}
-                className="btn-3d-primary px-4 py-2.5 text-xs font-black rounded-xl disabled:opacity-40 transition-all flex items-center gap-1.5"
+                className="px-4 py-2 bg-[#0B6E4F] hover:bg-[#08563d] text-white text-xs font-bold rounded-xl disabled:opacity-40 shadow-2xs transition-all flex items-center gap-1.5"
               >
-                <span>Ask AI</span>
+                <span>Search</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
           </form>
-        </div>
 
-        {/* 4. FOOTER */}
-        <footer className="mt-6 pt-4 border-t border-slate-200/80 text-center space-y-1">
-          <p className="text-xs font-bold text-slate-600">
-            Powered by <span className="text-[#0B6E4F] font-black">IBADAT International University (IIUI) AI Assistant</span>
-          </p>
-          <p className="text-[11px] text-slate-400 font-medium">
-            Strictly grounded in official university documentation & 78 fee structure PDFs.
-          </p>
-        </footer>
+          {/* FOOTER */}
+          <footer className="text-center pt-2">
+            <p className="text-[11px] text-slate-400 font-medium">
+              © 2026 IBADAT International University, Islamabad (IIUI) — Official Student Information Desk
+            </p>
+          </footer>
+
+        </section>
+
       </main>
 
     </div>

@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #0B6E4F;
-  --primary-dark: #08563d;
-  --accent: #14B8A6;
-  --bg-page: #F8FAFC;
+  --iiui-green: #0B6E4F;
+  --iiui-dark-green: #064E3B;
+  --iiui-accent: #10B981;
+  --slate-bg: #F8FAFC;
   --card-bg: #FFFFFF;
 }
 
@@ -15,112 +15,47 @@ body {
   overflow-x: hidden;
 }
 
-/* 3D Floating Orbs Background */
-.bg-3d-scene {
-  position: relative;
-  background-color: #F8FAFC;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(11, 110, 79, 0.07) 0%, transparent 40%),
-    radial-gradient(circle at 85% 25%, rgba(20, 184, 166, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 50% 80%, rgba(11, 110, 79, 0.05) 0%, transparent 50%);
+/* Custom Handcrafted Portal Cards */
+.portal-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Floating 3D Orbs Keyframe Animations */
-@keyframes floatOrb1 {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-15px) rotate(3deg); }
+.portal-card:hover {
+  border-color: #0B6E4F;
+  box-shadow: 0 10px 25px -5px rgba(11, 110, 79, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
 }
 
-@keyframes floatOrb2 {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(12px) rotate(-3deg); }
+/* Bespoke Portal Header Bar */
+.iiui-header-gradient {
+  background: linear-gradient(135deg, #0B6E4F 0%, #064E3B 100%);
 }
 
-.float-orb-1 {
-  animation: floatOrb1 6s ease-in-out infinite;
-}
-
-.float-orb-2 {
-  animation: floatOrb2 8s ease-in-out infinite;
-}
-
-/* 3D Glass Cards with Inset Highlights & Multi-layered Depth */
-.card-3d {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-top: 1.5px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 
-    0 10px 30px -5px rgba(15, 23, 42, 0.05),
-    0 4px 12px -2px rgba(11, 110, 79, 0.04),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
-  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.card-3d:hover {
-  transform: translateY(-5px) scale(1.01);
-  box-shadow: 
-    0 22px 40px -10px rgba(11, 110, 79, 0.18),
-    0 8px 16px -4px rgba(15, 23, 42, 0.06),
-    inset 0 1px 2px 0 rgba(255, 255, 255, 1);
-  border-color: rgba(11, 110, 79, 0.35);
-}
-
-/* 3D Tactile Pushable Button */
-.btn-3d-primary {
-  background: linear-gradient(135deg, #0B6E4F 0%, #08563d 100%);
-  color: #FFFFFF;
-  box-shadow: 
-    0 4px 0 0 #053b2a,
-    0 8px 20px -2px rgba(11, 110, 79, 0.35);
-  transition: all 0.15s ease;
-}
-
-.btn-3d-primary:hover {
-  background: linear-gradient(135deg, #0d7f5c 0%, #096347 100%);
-  transform: translateY(-1px);
-  box-shadow: 
-    0 5px 0 0 #053b2a,
-    0 12px 24px -2px rgba(11, 110, 79, 0.4);
-}
-
-.btn-3d-primary:active {
-  transform: translateY(3px);
-  box-shadow: 
-    0 1px 0 0 #053b2a,
-    0 4px 10px -2px rgba(11, 110, 79, 0.2);
-}
-
-/* 3D AI Emblem Ring Glow */
-.emblem-3d-glow {
-  box-shadow: 
-    0 0 0 8px rgba(11, 110, 79, 0.1),
-    0 0 0 16px rgba(20, 184, 166, 0.05),
-    0 15px 35px -5px rgba(11, 110, 79, 0.3);
-}
-
-/* Custom Markdown Table Styling */
+/* Clean Custom Markdown Table Styling */
 .markdown-content table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   margin: 1rem 0;
-  border-radius: 0.85rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   border: 1px solid #E2E8F0;
-  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }
 
 .markdown-content th {
-  background: linear-gradient(135deg, #0B6E4F 0%, #08563d 100%);
+  background-color: #0B6E4F;
   color: #FFFFFF;
   font-weight: 700;
   text-align: left;
   padding: 0.75rem 1rem;
   font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
 }
 
 .markdown-content td {
@@ -141,7 +76,7 @@ body {
 }
 
 .markdown-content tr:hover td {
-  background-color: rgba(11, 110, 79, 0.05);
+  background-color: rgba(11, 110, 79, 0.04);
 }
 
 /* Minimal Custom Scrollbar */
