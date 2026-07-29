@@ -1,26 +1,15 @@
 [
   {
     "test_id": 1,
-    "query": "tell me about AI fee and his eligibility and hostel fee",
+    "query": "what is the fee structure for BDA and my fsc number is 756 now i am eglible or not and also tell me about scorloship detail",
     "category": "High_Complexity",
     "retrieved_docs_count": 3,
     "file_audit_results": {
-      "title": "BS Artificial Intelligence",
-      "duration_years": 4,
-      "semesters": 8,
-      "credit_hours": 130,
-      "admission_fee_pkr": 25000,
-      "tuition_fee_per_semester_pkr": 120000,
-      "total_estimated_fee_pkr": 985000,
-      "total_seats": 60,
-      "min_eligibility_marks_pct": 50,
-      "math_deficiency_allowed": true,
-      "entry_test": "IIUI Entry Test / NAT",
-      "faculty": "Faculty of Computer Sciences"
+      "campus_info": "IIUI Islamabad Chartered Campus"
     },
     "quality_score": 0.95,
     "retry_count": 0,
     "error_logs": [],
-    "generated_response": "According to the provided audit data, here's the information about the BS Artificial Intelligence program:\n\n**Fee Structure:**\n- Admission Fee: PKR 25,000 (one-time payment, non-refundable)\n- Tuition Fee per Semester: PKR 120,000\n- Total Estimated Fee for the program: PKR 985,000\n\n**Eligibility:**\n- Minimum Eligibility Marks: 50%\n- Math Deficiency is allowed\n- Entry Test: IIUI Entry Test / NAT\n\n**Hostel Fee:**\nUnfortunately, the provided audit data does not include information about the hostel fee. For accurate and up-to-date information about hostel fees, I recommend visiting the university's official website or contacting their admission office directly."
+    "generated_response": "I'm happy to help you with your queries. However, I need to clarify that the provided context and audit data do not contain information about the fee structure for BDA (I'm assuming you meant BBA or a similar program, as BDA is not a standard program acronym) or specific scholarship details.\n\nThat being said, I can provide general information and guide you on where to find the required information.\n\n1. **Fee Structure:** The fee structure for IBADAT International University varies depending on the program. I recommend visiting the university's official website or contacting their admissions office directly to inquire about the fee structure for your desired program (e.g., BBA).\n\n2. **Eligibility:** To determine your eligibility for admission, you'll need to check the university's admission criteria, which typically includes a minimum FSC score, entrance test scores (such as the IBADAT International University Entrance Test, NAT, HAT, ECAT, or LAT), and other requirements. With an FSC score of 756, you may be eligible for some programs, but I would need more information about the specific program you're interested in and the university's admission requirements.\n\n3. **Scholarship Details:** IBADAT International University may offer various scholarships to deserving students. These scholarships can be merit-based, need-based, or a combination of both. Some common scholarships include:\n\t* Merit-based scholarships for students with high academic achievement (e.g., FSC scores above a certain threshold).\n\t* Need-based scholarships for students who demonstrate financial need.\n\t* Scholarships for students from specific regions or backgrounds.\n\nTo get more information about the fee structure, eligibility criteria, and scholarship details, I recommend:\n\n* Visiting the IBADAT International University website (if available).\n* Contacting the university's admissions office directly via phone or email.\n* Checking the university's social media pages or online forums for updates and discussions about admissions and scholarships.\n\nPlease note that the audit data provided only contains information about the campus, which is the IIUI Islamabad Chartered Campus. For more specific information, you'll need to consult the university's official resources or contact them directly."
   }
 ]
