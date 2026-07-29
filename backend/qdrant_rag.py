@@ -3,6 +3,7 @@ import glob
 import json
 import math
 import uuid
+import re
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
@@ -20,7 +21,13 @@ load_dotenv()
 
 COLLECTION_NAME = "iiui_knowledge_base"
 VECTOR_SIZE = 384
-MIN_RELEVANCE_SCORE = 0.50  # Relevance threshold for Qdrant vector matches
+MIN_RELEVANCE_SCORE = 0.45  # Relevance threshold for Qdrant vector matches
+
+GREETING_PATTERNS = [
+    r"\bhello\b", r"\bhi\b", r"\bhey\b", r"\bassalam\b", r"\baslam\b", r"\baoa\b", 
+    r"\balaikum\b", r"\bgreetings\b", r"\bgood morning\b", r"\bgood afternoon\b", 
+    r"\bgood evening\b", r"\bwho are you\b", r"\bkaun ho\b", r"\bkon ho\b", r"\bhelp\b"
+]
 
 class IIUIRAGPipeline:
     def __init__(self):
@@ -192,14 +199,46 @@ class IIUIRAGPipeline:
                 print(f"[RAG] Search error in Qdrant: {e}")
         return []
 
+    def is_greeting(self, query: str) -> bool:
+        """Checks if the query is a basic greeting or introductory question."""
+        q = query.strip().lower()
+        if len(q) < 15:
+            for pattern in GREETING_PATTERNS:
+                if re.search(pattern, q):
+                    return True
+        return False
+
     def answer_query(self, query: str) -> Dict[str, Any]:
-        """Executes strictly grounded RAG workflow to ensure responses ONLY come from retrieved docs."""
-        retrieved_docs = self.search(query, top_k=3)
+        """Executes strictly grounded RAG workflow with friendly greeting support."""
         
-        # Filter docs by minimum relevance threshold
+        # 1. Handle Basic Greetings (Hello, Assalam-o-Alaikum, etc.)
+        if self.is_greeting(query):
+            greeting_answer = (
+                "### Welcome to IBADAT International University (IIUI)\n\n"
+                "Walaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\n"
+                "I am here to assist you with official university information on:\n"
+                "- 🎓 **Admissions 2026 Criteria & Required Documents**\n"
+                "- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n"
+                "- 🏢 **Hostel Allocation & Semester Dues**\n"
+                "- 🏛️ **Faculties & Academic Regulations**\n\n"
+                "How can I help you with IIUI university information today?\n\n"
+                "---\n"
+                "- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
+            )
+            return {
+                "query": query,
+                "answer": greeting_answer,
+                "confidence_score": 1.0,
+                "sources": [],
+                "citations": [],
+                "retrieved_count": 0
+            }
+
+        # 2. Vector Search in Qdrant DB
+        retrieved_docs = self.search(query, top_k=3)
         relevant_docs = [doc for doc in retrieved_docs if doc["score"] >= MIN_RELEVANCE_SCORE]
 
-        # IF no relevant documents found for the user query (off-topic / out of scope)
+        # 3. IF no relevant documents found for off-topic queries
         if not relevant_docs:
             out_of_scope_answer = (
                 "### Out of Scope Query\n\n"
