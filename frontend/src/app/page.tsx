@@ -3,17 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { 
   Send, Bot, User, Sparkles, Copy, Check, RotateCcw, Trash2, 
-  ArrowUpRight, CheckCircle2, FileText, Download, FileDown, ShieldCheck, ExternalLink, HelpCircle
+  ArrowUpRight, CheckCircle2, FileText, Download, FileDown, ShieldCheck, ExternalLink, HelpCircle,
+  Database, Layers, Award, BookOpen, Search
 } from "lucide-react";
 import { sendChatMessage, ChatMessage } from "@/lib/api";
 import jsPDF from "jspdf";
 
 const SUGGESTED_QUESTIONS = [
-  { text: "How can I apply for BS AI?", icon: "🎓", tag: "Admissions" },
-  { text: "What is the fee structure for BS CS?", icon: "💳", tag: "Fee Details" },
-  { text: "Tell me about hostel facilities & fees.", icon: "🏢", tag: "Hostels" },
-  { text: "What documents are required for admission?", icon: "📄", tag: "Requirements" },
-  { text: "Where is the Faculty of Engineering?", icon: "🏛️", tag: "Campus Guide" },
+  { text: "How can I apply for BS AI in Admissions 2026?", icon: "🎓", tag: "Admissions", desc: "Eligibility criteria & required entry tests" },
+  { text: "What is the fee structure for BS CS?", icon: "💳", tag: "Fee Details", desc: "Tuition, admission & total semester dues" },
+  { text: "Tell me about hostel facilities & semester dues.", icon: "🏢", tag: "Hostels", desc: "Room allotment & hostel fee details" },
+  { text: "What documents are required for admission?", icon: "📄", tag: "Requirements", desc: "Matric, FSC, CNIC & photograph rules" },
+  { text: "Where is the Faculty of Engineering?", icon: "🏛️", tag: "Campus Guide", desc: "Department locations & office hours" },
+  { text: "What is the fee structure in Pharm-D?", icon: "💊", tag: "Pharmacy", desc: "5-Year Pharm-D tuition & lab charges" },
 ];
 
 /**
@@ -34,7 +36,7 @@ function MarkdownRenderer({ content }: { content: string }) {
         <div key={`table-${key}`} className="overflow-x-auto my-3 rounded-xl border border-slate-200 shadow-sm">
           <table className="min-w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#0B6E4F] text-white">
+              <tr className="bg-gradient-to-r from-[#0B6E4F] to-[#14B8A6] text-white">
                 {tableHeader.map((th, i) => (
                   <th key={i} className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider">
                     {th.trim()}
@@ -89,8 +91,8 @@ function MarkdownRenderer({ content }: { content: string }) {
     if (trimmed.startsWith("###") || trimmed.startsWith("##")) {
       const headingText = trimmed.replace(/^#+\s*/, "");
       elements.push(
-        <div key={idx} className="flex items-center gap-2 mt-4 mb-2 pb-1 border-b border-emerald-100">
-          <span className="w-1.5 h-4 bg-[#0B6E4F] rounded-full" />
+        <div key={idx} className="flex items-center gap-2 mt-4 mb-2 pb-1.5 border-b border-emerald-100/80">
+          <span className="w-1.5 h-4 bg-gradient-to-b from-[#0B6E4F] to-[#14B8A6] rounded-full" />
           <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">{headingText}</h3>
         </div>
       );
@@ -109,9 +111,9 @@ function MarkdownRenderer({ content }: { content: string }) {
     if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
       const listText = trimmed.replace(/^[*•-]\s*/, "");
       elements.push(
-        <div key={idx} className="flex items-start gap-2 my-1 pl-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0B6E4F] shrink-0 mt-1.5" />
-          <span className="text-xs text-slate-700 leading-relaxed">
+        <div key={idx} className="flex items-start gap-2.5 my-1.5 pl-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#0B6E4F] shrink-0 mt-1.5 shadow-sm shadow-[#0B6E4F]/40" />
+          <span className="text-xs text-slate-700 leading-relaxed font-medium">
             {formatInlineFormatting(listText)}
           </span>
         </div>
@@ -142,14 +144,14 @@ function formatInlineFormatting(text: string) {
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={index} className="font-bold text-slate-900">
+        <strong key={index} className="font-extrabold text-slate-900">
           {part.slice(2, -2)}
         </strong>
       );
     }
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={index} className="px-1.5 py-0.5 rounded bg-emerald-50 text-[#0B6E4F] font-mono text-[11px] border border-emerald-200/60 font-semibold">
+        <code key={index} className="px-1.5 py-0.5 rounded bg-emerald-50 text-[#0B6E4F] font-mono text-[11px] border border-emerald-200/80 font-bold shadow-xs">
           {part.slice(1, -1)}
         </code>
       );
@@ -304,36 +306,40 @@ export default function IIUIAIChatPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 bg-mesh text-slate-900 selection:bg-[#0B6E4F]/20">
+    <div className="min-h-screen flex flex-col bg-mesh-glow selection:bg-[#0B6E4F]/20">
       
-      {/* 1. TOP NAVIGATION */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      {/* 1. TOP NAVIGATION HEADER */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* IIUI Emblem Icon */}
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0B6E4F] to-[#14B8A6] flex items-center justify-center text-white shadow-md shadow-[#0B6E4F]/20">
-              <Sparkles className="w-5 h-5 text-emerald-100" />
+            {/* IIUI Shield Emblem */}
+            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0B6E4F] via-[#08563d] to-[#14B8A6] flex items-center justify-center text-white shadow-lg shadow-[#0B6E4F]/25 border border-white/20">
+              <Sparkles className="w-5 h-5 text-emerald-200 animate-pulse" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white pulse-green" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg text-slate-900 tracking-tight">IBADAT International University AI Assistant</h1>
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-[#0B6E4F]/10 text-[#0B6E4F] rounded-full border border-[#0B6E4F]/20">
-                  Qdrant Vector DB
+                <h1 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
+                  IBADAT International University
+                </h1>
+                <span className="hidden sm:flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-extrabold bg-emerald-50 text-[#0B6E4F] rounded-full border border-emerald-200/80 shadow-2xs">
+                  <Database className="w-3 h-3 text-[#0B6E4F]" />
+                  Qdrant Cloud Active
                 </span>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-1">
-                Ask questions about admissions, departments, fee structure, hostels, scholarships, regulations, and university information.
+              <p className="text-xs text-slate-500 font-medium">
+                Official RAG AI Assistant & Knowledge Base (78 Fee Structure PDFs Included)
               </p>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Header Action Buttons */}
           <div className="flex items-center gap-2">
             {messages.length > 0 && (
               <>
                 <button
                   onClick={handleExportFullChatPDF}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-[#0B6E4F] hover:bg-emerald-100 border border-emerald-200/80 transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-50 to-teal-50 text-[#0B6E4F] hover:from-emerald-100 hover:to-teal-100 border border-emerald-200/80 transition-all shadow-xs active:scale-95"
                   title="Export entire chat conversation as PDF"
                 >
                   <FileDown className="w-3.5 h-3.5" />
@@ -342,7 +348,7 @@ export default function IIUIAIChatPage() {
 
                 <button
                   onClick={handleClearChat}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all active:scale-95"
                   title="Clear conversation"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -355,47 +361,83 @@ export default function IIUIAIChatPage() {
       </header>
 
       {/* 2. MAIN CHAT AREA */}
-      <main className="flex-1 max-w-4xl mx-auto w-full flex flex-col p-4 md:p-6 justify-between">
+      <main className="flex-1 max-w-5xl mx-auto w-full flex flex-col p-4 md:p-6 justify-between">
         
         {/* Messages Feed or Empty State */}
         <div className="flex-1 overflow-y-auto space-y-6 pb-6">
           {messages.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#0B6E4F] to-[#14B8A6] text-white flex items-center justify-center shadow-xl shadow-[#0B6E4F]/20">
-                <Bot className="w-9 h-9" />
-              </div>
+            <div className="py-8 sm:py-12 flex flex-col items-center justify-center text-center space-y-6">
               
-              <div className="max-w-md space-y-2">
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">How can I help you today?</h2>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  I am the official AI Assistant for IBADAT International University, Islamabad. Click any suggested question or type your prompt below.
+              {/* HERO EMBLEM CARD */}
+              <div className="relative">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#0B6E4F] via-[#08563d] to-[#14B8A6] text-white flex items-center justify-center shadow-2xl shadow-[#0B6E4F]/30 border-2 border-white/20">
+                  <Bot className="w-10 h-10" />
+                </div>
+                <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-amber-400 text-slate-950 font-black text-[10px] rounded-full shadow-md uppercase tracking-wider">
+                  2026 AI Agent
+                </div>
+              </div>
+
+              <div className="max-w-lg space-y-2">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight sm:text-3xl">
+                  Ask anything about IIUI Admissions, Fees & Hostels
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-medium">
+                  Trained strictly on 160 official vector chunks & 78 program fee PDFs. Instant, verified answers grounded in official records.
                 </p>
               </div>
 
-              {/* SUGGESTED QUESTIONS CARDS */}
-              <div className="w-full max-w-2xl pt-4">
-                <p className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider text-left">
-                  Suggested Questions
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+              {/* CATEGORY TAG CHIPS */}
+              <div className="flex flex-wrap justify-center gap-2 max-w-xl">
+                {["🎓 Admissions 2026", "💳 Fee Structures", "🏢 Hostels", "📄 Eligibility", "🏛️ Faculties"].map((tag, i) => (
+                  <span key={i} className="px-3 py-1 bg-white/80 rounded-full border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* SUGGESTED QUESTIONS GRID */}
+              <div className="w-full max-w-3xl pt-2">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    Popular Queries
+                  </p>
+                  <span className="text-[11px] font-bold text-[#0B6E4F] flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> One-click search
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left">
                   {SUGGESTED_QUESTIONS.map((sq, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleSendMessage(sq.text)}
-                      className="p-3.5 bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200 hover:border-[#0B6E4F] hover:shadow-md transition-all flex items-center justify-between group text-xs text-slate-800 font-medium"
+                      className="glass-card glass-card-hover p-4 rounded-2xl text-left flex flex-col justify-between group cursor-pointer"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-base">{sq.icon}</span>
-                        <div>
-                          <p className="font-semibold text-slate-900 group-hover:text-[#0B6E4F] transition-colors">{sq.text}</p>
-                          <span className="text-[10px] text-slate-400 font-medium">{sq.tag}</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xl p-1.5 bg-emerald-50 rounded-xl border border-emerald-100">{sq.icon}</span>
+                          <span className="px-2 py-0.5 text-[9px] font-extrabold bg-[#0B6E4F]/10 text-[#0B6E4F] rounded-full border border-[#0B6E4F]/20 uppercase">
+                            {sq.tag}
+                          </span>
                         </div>
+                        <p className="font-extrabold text-xs text-slate-900 group-hover:text-[#0B6E4F] transition-colors leading-snug">
+                          {sq.text}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          {sq.desc}
+                        </p>
                       </div>
-                      <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-[#0B6E4F] transition-colors shrink-0 ml-2" />
+
+                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 group-hover:text-[#0B6E4F] transition-colors">
+                        <span>Query Assistant</span>
+                        <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
+
             </div>
           ) : (
             messages.map((msg) => (
@@ -404,61 +446,100 @@ export default function IIUIAIChatPage() {
                 className={`flex gap-3 md:gap-4 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.sender === "ai" && (
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0B6E4F] to-[#14B8A6] flex items-center justify-center text-white shrink-0 shadow-md shadow-[#0B6E4F]/20 mt-1">
-                    <Bot className="w-4 h-4" />
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#0B6E4F] via-[#08563d] to-[#14B8A6] flex items-center justify-center text-white shrink-0 shadow-lg shadow-[#0B6E4F]/20 mt-1 border border-white/20">
+                    <Bot className="w-4.5 h-4.5" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-2xl rounded-2xl p-4 sm:p-5 shadow-sm text-xs leading-relaxed space-y-3 ${
+                  className={`max-w-3xl rounded-3xl p-5 shadow-xs text-xs leading-relaxed space-y-3.5 ${
                     msg.sender === "user"
-                      ? "bg-gradient-to-r from-[#0B6E4F] to-[#08563d] text-white rounded-tr-none font-medium shadow-md shadow-[#0B6E4F]/15"
-                      : "bg-white text-slate-800 border border-slate-200/90 rounded-tl-none"
+                      ? "bg-gradient-to-r from-[#0B6E4F] to-[#08563d] text-white rounded-tr-xs font-semibold shadow-md shadow-[#0B6E4F]/15"
+                      : "bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-xs"
                   }`}
                 >
+                  {/* AI Badge Header */}
+                  {msg.sender === "ai" && (
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-[10px] font-bold">
+                      <div className="flex items-center gap-1.5 text-[#0B6E4F]">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>IIUI Verified RAG Assistant</span>
+                      </div>
+                      <span className="text-slate-400 font-mono">Grounded Vector Search</span>
+                    </div>
+                  )}
+
                   {msg.sender === "user" ? (
-                    <div className="whitespace-pre-wrap font-medium">{msg.text}</div>
+                    <div className="whitespace-pre-wrap font-semibold text-sm leading-relaxed">{msg.text}</div>
                   ) : (
                     <MarkdownRenderer content={msg.text} />
                   )}
 
-                  {/* AI Response Footer: Confidence Score, Sources & Actions */}
+                  {/* AI Response Footer: Confidence Score Bar, Retrieved Qdrant Sources & Action Toolbar */}
                   {msg.sender === "ai" && (
-                    <div className="pt-3 border-t border-slate-100 space-y-2.5 text-[11px] text-slate-500">
-                      {msg.confidence_score && (
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Grounded Confidence Score:
-                          </span>
-                          <span className="font-bold text-[#0B6E4F] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/60">
-                            {Math.round(msg.confidence_score * 100)}%
-                          </span>
+                    <div className="pt-3 border-t border-slate-100 space-y-3">
+                      
+                      {/* GROUNDED CONFIDENCE PROGRESS BAR */}
+                      {msg.confidence_score !== undefined && (
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold">
+                            <span className="flex items-center gap-1 text-slate-700">
+                              <Award className="w-3.5 h-3.5 text-[#0B6E4F]" />
+                              Document Grounding Score:
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full font-black ${
+                              msg.confidence_score > 0.7 
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
+                                : msg.confidence_score > 0
+                                ? "bg-amber-100 text-amber-800 border border-amber-300"
+                                : "bg-slate-200 text-slate-700"
+                            }`}>
+                              {Math.round(msg.confidence_score * 100)}% Match
+                            </span>
+                          </div>
+
+                          {/* Visual Progress Bar */}
+                          <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-[#0B6E4F] to-[#14B8A6] rounded-full transition-all duration-500" 
+                              style={{ width: `${Math.round(msg.confidence_score * 100)}%` }}
+                            />
+                          </div>
                         </div>
                       )}
 
+                      {/* RETRIEVED QDRANT SOURCES CARDS */}
                       {msg.sources && msg.sources.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="font-semibold text-slate-600">Retrieved Qdrant Sources:</p>
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                            <BookOpen className="w-3 h-3 text-[#0B6E4F]" />
+                            Retrieved Qdrant Documents ({msg.sources.length}):
+                          </p>
                           <div className="flex flex-wrap gap-1.5">
                             {msg.sources.map((src, i) => (
-                              <span
+                              <div
                                 key={i}
-                                className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-medium border border-slate-200"
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200/90 shadow-2xs hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
                               >
-                                📄 {src.title}
-                              </span>
+                                <span>📄</span>
+                                <span className="truncate max-w-[180px]">{src.filename || src.title}</span>
+                                {src.score && (
+                                  <span className="text-[9px] text-[#0B6E4F] bg-white px-1.5 py-0.2 rounded border border-emerald-200">
+                                    {Math.round(src.score * 100)}%
+                                  </span>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Actions: Copy, Regenerate, Export Single Answer PDF */}
+                      {/* ACTION TOOLBAR */}
                       <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
                         <div className="flex items-center gap-3 text-slate-500">
                           <button
                             onClick={() => handleCopy(msg.text, msg.id)}
-                            className="flex items-center gap-1 hover:text-[#0B6E4F] transition-colors font-medium"
+                            className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-100 text-slate-600 hover:text-[#0B6E4F] transition-colors font-bold text-[11px]"
                             title="Copy Answer Text"
                           >
                             {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -467,7 +548,7 @@ export default function IIUIAIChatPage() {
 
                           <button
                             onClick={handleRegenerate}
-                            className="flex items-center gap-1 hover:text-[#0B6E4F] transition-colors font-medium"
+                            className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-100 text-slate-600 hover:text-[#0B6E4F] transition-colors font-bold text-[11px]"
                             title="Regenerate Answer"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
@@ -478,20 +559,21 @@ export default function IIUIAIChatPage() {
                         {/* Export Answer PDF Button */}
                         <button
                           onClick={() => handleExportSingleAnswerPDF(msg.text)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-[#0B6E4F] text-[#0B6E4F] hover:text-white transition-all font-semibold text-[10px] border border-emerald-200/80 shadow-sm"
+                          className="flex items-center gap-1.5 px-3 py-1.2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-[#0B6E4F] hover:to-[#08563d] text-[#0B6E4F] hover:text-white transition-all font-black text-[10px] border border-emerald-200/80 shadow-2xs active:scale-95"
                           title="Download this response as PDF document"
                         >
                           <Download className="w-3 h-3" />
                           <span>Export Answer PDF</span>
                         </button>
                       </div>
+
                     </div>
                   )}
                 </div>
 
                 {msg.sender === "user" && (
-                  <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center shrink-0 shadow-md mt-1">
-                    <User className="w-4 h-4" />
+                  <div className="w-9 h-9 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-md mt-1 font-extrabold text-xs">
+                    <User className="w-4.5 h-4.5" />
                   </div>
                 )}
               </div>
@@ -501,11 +583,11 @@ export default function IIUIAIChatPage() {
           {/* Typing Indicator */}
           {isLoading && (
             <div className="flex gap-3 items-center text-xs text-slate-500">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0B6E4F] to-[#14B8A6] flex items-center justify-center text-white shrink-0 shadow-md">
-                <Bot className="w-4 h-4 animate-bounce" />
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#0B6E4F] to-[#14B8A6] flex items-center justify-center text-white shrink-0 shadow-md">
+                <Bot className="w-4.5 h-4.5 animate-bounce" />
               </div>
-              <div className="px-4 py-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 shadow-sm">
-                <span className="font-medium text-slate-700">IIUI AI is processing Qdrant vectors...</span>
+              <div className="px-5 py-3.5 bg-white border border-slate-200 rounded-2xl flex items-center gap-2.5 shadow-sm">
+                <span className="font-bold text-slate-700">IIUI AI is querying Qdrant Cloud vectors...</span>
                 <div className="flex items-center gap-1">
                   <span className="typing-dot" />
                   <span className="typing-dot" />
@@ -525,14 +607,17 @@ export default function IIUIAIChatPage() {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="relative flex items-center bg-white rounded-2xl border border-slate-300 shadow-md focus-within:border-[#0B6E4F] focus-within:ring-2 focus-within:ring-[#0B6E4F]/20 transition-all p-2"
+            className="relative flex items-center bg-white rounded-2xl border border-slate-300 shadow-lg shadow-slate-200/50 focus-within:border-[#0B6E4F] focus-within:ring-4 focus-within:ring-[#0B6E4F]/15 transition-all p-2.5"
           >
+            <div className="pl-2 pr-1 text-slate-400">
+              <Search className="w-4 h-4 text-[#0B6E4F]" />
+            </div>
             <input
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               placeholder="Ask anything about IBADAT International University admissions, fee structures, hostels..."
-              className="w-full px-3.5 py-2 text-xs sm:text-sm outline-none bg-transparent text-slate-800 placeholder-slate-400 font-medium"
+              className="w-full px-2 py-1 text-xs sm:text-sm outline-none bg-transparent text-slate-900 placeholder-slate-400 font-medium"
             />
             <div className="flex items-center gap-1.5 shrink-0">
               {messages.length > 0 && (
@@ -548,22 +633,22 @@ export default function IIUIAIChatPage() {
               <button
                 type="submit"
                 disabled={!inputQuery.trim() || isLoading}
-                className="px-4 py-2 bg-gradient-to-r from-[#0B6E4F] to-[#14B8A6] hover:from-[#08563d] hover:to-[#0f9f8e] text-white text-xs font-bold rounded-xl disabled:opacity-40 shadow-md transition-all flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-gradient-to-r from-[#0B6E4F] via-[#08563d] to-[#14B8A6] hover:from-[#08563d] hover:to-[#0f9f8e] text-white text-xs font-black rounded-xl disabled:opacity-40 shadow-md shadow-[#0B6E4F]/25 transition-all flex items-center gap-1.5 active:scale-95"
               >
-                <span>Send</span>
+                <span>Ask AI</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
           </form>
         </div>
 
-        {/* 6. FOOTER */}
+        {/* 4. FOOTER */}
         <footer className="mt-6 pt-4 border-t border-slate-200 text-center space-y-1">
-          <p className="text-xs font-semibold text-slate-600">
-            Powered by <span className="text-[#0B6E4F] font-bold">IBADAT International University (IIUI) AI Assistant</span>
+          <p className="text-xs font-bold text-slate-600">
+            Powered by <span className="text-[#0B6E4F] font-black">IBADAT International University (IIUI) AI Assistant</span>
           </p>
-          <p className="text-[11px] text-slate-400">
-            AI responses are generated from the university knowledge base and may not replace official announcements.
+          <p className="text-[11px] text-slate-400 font-medium">
+            Strictly grounded in official university documentation & 78 fee structure PDFs.
           </p>
         </footer>
       </main>

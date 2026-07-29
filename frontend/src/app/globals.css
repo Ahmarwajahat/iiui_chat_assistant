@@ -11,48 +11,88 @@
 }
 
 body {
-  background-color: var(--bg-page);
+  background-color: #F8FAFC;
   color: var(--text-main);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   overflow-x: hidden;
 }
 
 /* Ambient Background Mesh */
-.bg-mesh {
+.bg-mesh-glow {
   background-image: 
-    radial-gradient(at 0% 0%, rgba(11, 110, 79, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.08) 0px, transparent 50%);
+    radial-gradient(at 10% 10%, rgba(11, 110, 79, 0.08) 0px, transparent 40%),
+    radial-gradient(at 90% 10%, rgba(20, 184, 166, 0.08) 0px, transparent 40%),
+    radial-gradient(at 50% 90%, rgba(11, 110, 79, 0.05) 0px, transparent 50%);
 }
 
-/* Custom Styled Tables for Markdown Responses */
+/* Glassmorphism Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -10px rgba(11, 110, 79, 0.15);
+  border-color: rgba(11, 110, 79, 0.4);
+}
+
+/* Live Pulse Indicator */
+.pulse-green {
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-green-anim 2s infinite;
+}
+
+@keyframes pulse-green-anim {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Custom Markdown Table Styling */
 .markdown-content table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   margin: 1rem 0;
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   overflow: hidden;
   border: 1px solid #E2E8F0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .markdown-content th {
-  background-color: #0B6E4F;
+  background: linear-gradient(135deg, #0B6E4F 0%, #08563d 100%);
   color: #FFFFFF;
-  font-weight: 600;
+  font-weight: 700;
   text-align: left;
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
   font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .markdown-content td {
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #F1F5F9;
   background-color: #FFFFFF;
   font-size: 0.75rem;
   color: #334155;
+  font-weight: 500;
 }
 
 .markdown-content tr:last-child td {
@@ -64,54 +104,7 @@ body {
 }
 
 .markdown-content tr:hover td {
-  background-color: rgba(11, 110, 79, 0.04);
-}
-
-/* Styled Blockquotes */
-.markdown-content blockquote {
-  border-left: 4px solid #0B6E4F;
-  padding-left: 1rem;
-  margin: 0.75rem 0;
-  color: #475569;
-  font-style: italic;
-  background: rgba(11, 110, 79, 0.03);
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-radius: 0 0.5rem 0.5rem 0;
-}
-
-/* Headings Styling */
-.markdown-content h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0F172A;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  border-left: 3px solid #0B6E4F;
-  padding-left: 0.5rem;
-}
-
-.markdown-content h4 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #0B6E4F;
-  margin-top: 0.75rem;
-  margin-bottom: 0.375rem;
-}
-
-/* Inline Code Pill */
-.markdown-content code {
-  background-color: #F1F5F9;
-  color: #0B6E4F;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  border: 1px solid #E2E8F0;
-  font-weight: 600;
+  background-color: rgba(11, 110, 79, 0.05);
 }
 
 /* Minimal Custom Scrollbar */
@@ -126,7 +119,7 @@ body {
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #0B6E4F;
 }
 
 /* Typing Dot Animation */
