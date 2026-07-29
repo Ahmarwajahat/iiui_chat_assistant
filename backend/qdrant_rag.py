@@ -20,6 +20,7 @@ load_dotenv()
 
 COLLECTION_NAME = "iiui_knowledge_base"
 VECTOR_SIZE = 384
+MIN_RELEVANCE_SCORE = 0.50  # Relevance threshold for Qdrant vector matches
 
 class IIUIRAGPipeline:
     def __init__(self):
@@ -57,7 +58,7 @@ class IIUIRAGPipeline:
             try:
                 self.llm = ChatGroq(
                     model="llama-3.3-70b-versatile",
-                    temperature=0.2,
+                    temperature=0.1,  # Low temperature for strict factual accuracy
                     groq_api_key=self.groq_api_key
                 )
                 print("[RAG] Initialized Groq LLM.")
@@ -112,7 +113,7 @@ class IIUIRAGPipeline:
                             payload={
                                 "filename": filename,
                                 "category": category,
-                                "text": chunk,
+                                "text": chunk[:1000],
                                 "source": f"IBADAT International University (IIUI) - {category}"
                             }
                         )
@@ -133,7 +134,7 @@ class IIUIRAGPipeline:
                     
                     if pdf_text and len(pdf_text) > 30:
                         prog_name = filename.replace("-2026-2.pdf", "").replace("-2025.pdf", "").replace("-Fee-Structure", "").replace("_", " ")
-                        formatted_text = f"IBADAT International University Islamabad (IIUI) Fee Document ({filename}):\nProgram / Document: {prog_name}\n\n{pdf_text}"
+                        formatted_text = f"IBADAT International University Islamabad (IIUI) Fee Document ({filename}):\nProgram / Document: {prog_name}\n\n{pdf_text[:900]}"
                         
                         vector = self.encoder.encode(formatted_text).tolist()
                         points.append(
@@ -160,7 +161,7 @@ class IIUIRAGPipeline:
             return len(points)
         return 0
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
         """Vector similarity search in Qdrant Vector DB."""
         if not self.encoder:
             return []
@@ -192,21 +193,45 @@ class IIUIRAGPipeline:
         return []
 
     def answer_query(self, query: str) -> Dict[str, Any]:
-        """Executes full RAG workflow to produce a grounded response with confidence & sources."""
-        retrieved_docs = self.search(query, top_k=5)
+        """Executes strictly grounded RAG workflow to ensure responses ONLY come from retrieved docs."""
+        retrieved_docs = self.search(query, top_k=3)
         
-        if retrieved_docs:
-            top_score = retrieved_docs[0]["score"]
-            confidence = min(0.98, max(0.70, round(top_score * 1.18, 2)))
-        else:
-            confidence = 0.50
+        # Filter docs by minimum relevance threshold
+        relevant_docs = [doc for doc in retrieved_docs if doc["score"] >= MIN_RELEVANCE_SCORE]
+
+        # IF no relevant documents found for the user query (off-topic / out of scope)
+        if not relevant_docs:
+            out_of_scope_answer = (
+                "### Out of Scope Query\n\n"
+                "I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**, "
+                "trained strictly on official university documentation (fee structures, admissions, hostels, departments, and regulations).\n\n"
+                f"I do not have official university documentation regarding **\"{query}\"** in the records.\n\n"
+                "Please feel free to ask about:\n"
+                "- 🎓 **Admissions 2026 Criteria & Required Documents**\n"
+                "- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n"
+                "- 🏢 **Hostel Accommodation & Dues**\n"
+                "- 🏛️ **Departments & Academic Regulations**\n\n"
+                "---\n"
+                "- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
+            )
+            return {
+                "query": query,
+                "answer": out_of_scope_answer,
+                "confidence_score": 0.0,
+                "sources": [],
+                "citations": [],
+                "retrieved_count": 0
+            }
+
+        top_score = relevant_docs[0]["score"]
+        confidence = min(0.98, max(0.70, round(top_score * 1.18, 2)))
 
         context_blocks = []
         sources = []
         citations = []
 
-        for idx, doc in enumerate(retrieved_docs, start=1):
-            context_blocks.append(f"[{idx}] (Source: {doc['source']})\n{doc['text']}")
+        for idx, doc in enumerate(relevant_docs, start=1):
+            context_blocks.append(f"[{idx}] (Source: {doc['source']})\n{doc['text'][:800]}")
             sources.append({
                 "title": doc['source'],
                 "filename": doc["filename"],
@@ -215,12 +240,16 @@ class IIUIRAGPipeline:
             })
             citations.append(f"[{idx}] {doc['filename']}")
 
-        context_str = "\n\n".join(context_blocks) if context_blocks else "No specific documents available."
+        context_str = "\n\n".join(context_blocks)
 
         system_prompt = (
+            "STRICT GROUNDING MANDATE:\n"
             "You are the official AI Assistant for IBADAT International University, Islamabad (IIUI).\n"
-            "CRITICAL INSTRUCTION: The official and correct name of the university is IBADAT International University, Islamabad (IIUI). Never refer to it as International Islamic University.\n"
-            "Format your response in clean, beautiful, highly structured Markdown:\n"
+            "You MUST answer strictly and exclusively based on the retrieved IBADAT International University context provided below.\n"
+            "DO NOT use general world knowledge, personal opinions, or hallucinate information about off-topic subjects (such as restaurants, general food recommendations, weather, external news, etc.).\n"
+            "If the retrieved context does not contain direct information to answer the question, state clearly:\n"
+            "'This specific information is not available in the official IBADAT International University (IIUI) records.'\n\n"
+            "Formatting Rules:\n"
             "1. Start with a main heading: ### [Topic Title]\n"
             "2. Group information into clear sub-sections with bold headings (**Item Name**).\n"
             "3. For fee queries (BS AI, BS CS, Pharm-D, DPT, BBA, Hostels), extract exact numbers (Tuition fee per credit hr, Admission charges, Semester contribution, Exam fee, Total semester fee) and present them using bullet points or a Markdown table.\n"
@@ -243,24 +272,17 @@ class IIUIRAGPipeline:
                 print(f"[RAG] LLM execution error: {e}")
 
         if not answer_text:
-            if retrieved_docs:
-                top_doc = retrieved_docs[0]
-                answer_text = (
-                    f"### IBADAT International University, Islamabad (IIUI)\n\n"
-                    f"Based on IIUI official records for **{top_doc['filename']}**:\n\n"
-                    f"{top_doc['text']}\n\n"
-                    f"---\n"
-                    f"**Official Admissions Contact:**\n"
-                    f"- **University**: IBADAT International University, Islamabad (IIUI)\n"
-                    f"- **Phone**: +92-51-9019619 | **Email**: `admissions@iiui.edu.pk`\n"
-                    f"- **Campus**: Islamabad, Pakistan"
-                )
-            else:
-                answer_text = (
-                    "### IBADAT International University (IIUI) AI Assistant\n\n"
-                    "For specific inquiries regarding BS/MS programs, hostel allocations, fee structures, or campus regulations, "
-                    "please reach out directly to IIUI Student Affairs at `info@iiui.edu.pk` or call +92-51-9019619."
-                )
+            top_doc = relevant_docs[0]
+            answer_text = (
+                f"### IBADAT International University, Islamabad (IIUI)\n\n"
+                f"Based on IIUI official records for **{top_doc['filename']}**:\n\n"
+                f"{top_doc['text'][:800]}\n\n"
+                f"---\n"
+                f"**Official Admissions Contact:**\n"
+                f"- **University**: IBADAT International University, Islamabad (IIUI)\n"
+                f"- **Phone**: +92-51-9019619 | **Email**: `admissions@iiui.edu.pk`\n"
+                f"- **Campus**: Islamabad, Pakistan"
+            )
 
         return {
             "query": query,
@@ -268,5 +290,5 @@ class IIUIRAGPipeline:
             "confidence_score": confidence,
             "sources": sources,
             "citations": citations,
-            "retrieved_count": len(retrieved_docs)
+            "retrieved_count": len(relevant_docs)
         }
