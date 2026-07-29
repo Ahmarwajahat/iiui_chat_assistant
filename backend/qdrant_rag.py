@@ -113,7 +113,7 @@ class IIUIRAGPipeline:
                                 "filename": filename,
                                 "category": category,
                                 "text": chunk,
-                                "source": f"IIUI Official - {category}"
+                                "source": f"IBADAT International University (IIUI) - {category}"
                             }
                         )
                     )
@@ -133,7 +133,7 @@ class IIUIRAGPipeline:
                     
                     if pdf_text and len(pdf_text) > 30:
                         prog_name = filename.replace("-2026-2.pdf", "").replace("-2025.pdf", "").replace("-Fee-Structure", "").replace("_", " ")
-                        formatted_text = f"Official IIUI Fee Structure Document ({filename}):\nProgram / Document: {prog_name}\n\n{pdf_text}"
+                        formatted_text = f"IBADAT International University Islamabad (IIUI) Fee Document ({filename}):\nProgram / Document: {prog_name}\n\n{pdf_text}"
                         
                         vector = self.encoder.encode(formatted_text).tolist()
                         points.append(
@@ -144,7 +144,7 @@ class IIUIRAGPipeline:
                                     "filename": filename,
                                     "category": "Fee Structure PDF",
                                     "text": formatted_text,
-                                    "source": f"IIUI Official Fee Document ({filename})"
+                                    "source": f"IBADAT International University Fee Document ({filename})"
                                 }
                             )
                         )
@@ -184,7 +184,7 @@ class IIUIRAGPipeline:
                         "text": hit.payload.get("text", ""),
                         "category": hit.payload.get("category", "General"),
                         "filename": hit.payload.get("filename", "Doc"),
-                        "source": hit.payload.get("source", "IIUI System")
+                        "source": hit.payload.get("source", "IBADAT International University System")
                     })
                 return results
             except Exception as e:
@@ -218,21 +218,22 @@ class IIUIRAGPipeline:
         context_str = "\n\n".join(context_blocks) if context_blocks else "No specific documents available."
 
         system_prompt = (
-            "You are the official AI Assistant for International Islamic University Islamabad (IIUI).\n"
+            "You are the official AI Assistant for IBADAT International University, Islamabad (IIUI).\n"
+            "CRITICAL INSTRUCTION: The official and correct name of the university is IBADAT International University, Islamabad (IIUI). Never refer to it as International Islamic University.\n"
             "Format your response in clean, beautiful, highly structured Markdown:\n"
             "1. Start with a main heading: ### [Topic Title]\n"
             "2. Group information into clear sub-sections with bold headings (**Item Name**).\n"
             "3. For fee queries (BS AI, BS CS, Pharm-D, DPT, BBA, Hostels), extract exact numbers (Tuition fee per credit hr, Admission charges, Semester contribution, Exam fee, Total semester fee) and present them using bullet points or a Markdown table.\n"
             "4. For admission criteria, list eligibility percentage, required intermediate subjects, and test rules.\n"
             "5. Always end with a divider '---' followed by official contact info:\n"
-            "   - **Admission Office**: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | H-10 Campus, Islamabad."
+            "   - **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
         )
 
         answer_text = ""
         if self.llm and ChatPromptTemplate:
             try:
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"{system_prompt}\n\nRetrieved IIUI Knowledge Context:\n{context_str}"),
+                    ("system", f"{system_prompt}\n\nRetrieved IBADAT International University Context:\n{context_str}"),
                     ("human", "{query}")
                 ])
                 chain = prompt | self.llm
@@ -245,17 +246,18 @@ class IIUIRAGPipeline:
             if retrieved_docs:
                 top_doc = retrieved_docs[0]
                 answer_text = (
-                    f"### International Islamic University Islamabad (IIUI)\n\n"
+                    f"### IBADAT International University, Islamabad (IIUI)\n\n"
                     f"Based on IIUI official records for **{top_doc['filename']}**:\n\n"
                     f"{top_doc['text']}\n\n"
                     f"---\n"
                     f"**Official Admissions Contact:**\n"
+                    f"- **University**: IBADAT International University, Islamabad (IIUI)\n"
                     f"- **Phone**: +92-51-9019619 | **Email**: `admissions@iiui.edu.pk`\n"
-                    f"- **Campus**: IIUI Sector H-10, Islamabad, Pakistan"
+                    f"- **Campus**: Islamabad, Pakistan"
                 )
             else:
                 answer_text = (
-                    "### IIUI AI Assistant\n\n"
+                    "### IBADAT International University (IIUI) AI Assistant\n\n"
                     "For specific inquiries regarding BS/MS programs, hostel allocations, fee structures, or campus regulations, "
                     "please reach out directly to IIUI Student Affairs at `info@iiui.edu.pk` or call +92-51-9019619."
                 )

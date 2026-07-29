@@ -239,7 +239,7 @@ export default function IIUIAIChatPage() {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
-    doc.text("International Islamic University Islamabad (IIUI)", 14, 20);
+    doc.text("IBADAT International University, Islamabad (IIUI)", 14, 20);
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.text(`Official AI Assistant Response Transcript - ${new Date().toLocaleDateString()}`, 14, 27);
@@ -268,7 +268,7 @@ export default function IIUIAIChatPage() {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
-    doc.text("International Islamic University Islamabad (IIUI)", 14, 20);
+    doc.text("IBADAT International University, Islamabad (IIUI)", 14, 20);
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.text(`Full AI Conversation Log - ${new Date().toLocaleDateString()}`, 14, 27);
@@ -316,7 +316,7 @@ export default function IIUIAIChatPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg text-slate-900 tracking-tight">IIUI AI Assistant</h1>
+                <h1 className="font-bold text-lg text-slate-900 tracking-tight">IBADAT International University AI Assistant</h1>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-[#0B6E4F]/10 text-[#0B6E4F] rounded-full border border-[#0B6E4F]/20">
                   Qdrant Vector DB
                 </span>
@@ -368,7 +368,7 @@ export default function IIUIAIChatPage() {
               <div className="max-w-md space-y-2">
                 <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">How can I help you today?</h2>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  I am the official AI Assistant for International Islamic University Islamabad. Click any suggested question or type your prompt below.
+                  I am the official AI Assistant for IBADAT International University, Islamabad. Click any suggested question or type your prompt below.
                 </p>
               </div>
 
@@ -531,7 +531,7 @@ export default function IIUIAIChatPage() {
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Ask anything about IIUI admissions, fee structures, hostels, departments..."
+              placeholder="Ask anything about IBADAT International University admissions, fee structures, hostels..."
               className="w-full px-3.5 py-2 text-xs sm:text-sm outline-none bg-transparent text-slate-800 placeholder-slate-400 font-medium"
             />
             <div className="flex items-center gap-1.5 shrink-0">
@@ -560,7 +560,7 @@ export default function IIUIAIChatPage() {
         {/* 6. FOOTER */}
         <footer className="mt-6 pt-4 border-t border-slate-200 text-center space-y-1">
           <p className="text-xs font-semibold text-slate-600">
-            Powered by <span className="text-[#0B6E4F] font-bold">IIUI AI Assistant</span>
+            Powered by <span className="text-[#0B6E4F] font-bold">IBADAT International University (IIUI) AI Assistant</span>
           </p>
           <p className="text-[11px] text-slate-400">
             AI responses are generated from the university knowledge base and may not replace official announcements.

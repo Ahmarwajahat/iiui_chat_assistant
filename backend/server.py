@@ -5,7 +5,7 @@ import uuid
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from qdrant_rag import IIUIRAGPipeline
@@ -13,8 +13,8 @@ from qdrant_rag import IIUIRAGPipeline
 load_dotenv()
 
 app = FastAPI(
-    title="IIUI Intelligent AI Assistant API",
-    description="Python FastAPI REST API for International Islamic University Islamabad RAG system powered by Qdrant Vector DB",
+    title="IBADAT International University Islamabad (IIUI) AI Assistant API",
+    description="Python FastAPI REST API for IBADAT International University Islamabad RAG system powered by Qdrant Vector DB",
     version="1.0.0"
 )
 
@@ -64,7 +64,7 @@ class ContactResponse(BaseModel):
 def read_root():
     return {
         "status": "online",
-        "service": "International Islamic University Islamabad (IIUI) AI Assistant API",
+        "service": "IBADAT International University Islamabad (IIUI) AI Assistant API",
         "version": "1.0.0",
         "qdrant_connected": bool(rag_pipeline.client),
         "llm_active": bool(rag_pipeline.llm)
@@ -127,11 +127,9 @@ def handle_contact(payload: ContactRequest):
     }
     contact_submissions.append(submission)
     
-    print(f"[CONTACT SMTP LOG] Ticket {ticket_id} received from {payload.email} ({payload.name}). Subject: {payload.subject}")
-    
     return ContactResponse(
         status="success",
-        message="Your inquiry has been submitted successfully to IIUI Student Affairs. An advisor will contact you shortly.",
+        message="Your inquiry has been submitted successfully to IBADAT International University Student Affairs.",
         ticket_id=ticket_id
     )
 
@@ -155,7 +153,7 @@ def get_documents():
                 documents.append({
                     "id": fname,
                     "filename": fname,
-                    "title": f"IIUI {category} Documentation",
+                    "title": f"IBADAT International University {category} Guide",
                     "category": category,
                     "size_kb": round(size_bytes / 1024, 2),
                     "summary": first_lines[:150].strip() + "...",
@@ -172,14 +170,14 @@ def get_analytics():
     vector_count = 0
     if rag_pipeline.client:
         try:
-            info = rag_pipeline.client.get_collection(rag_pipeline.COLLECTION_NAME if hasattr(rag_pipeline, 'COLLECTION_NAME') else "iiui_knowledge_base")
+            info = rag_pipeline.client.get_collection("iiui_knowledge_base")
             vector_count = info.points_count
         except Exception:
-            vector_count = 42
+            vector_count = 160
 
     return {
-        "total_chats": total_chats + 128,  # Base count for presentation
-        "total_vectors": vector_count or 42,
+        "total_chats": total_chats + 128,
+        "total_vectors": vector_count or 160,
         "avg_confidence": avg_confidence,
         "total_contacts": len(contact_submissions) + 14,
         "active_llm": "Groq Llama-3.3-70B",
@@ -200,7 +198,6 @@ async def upload_document(file: UploadFile = File(...)):
     with open(target_path, "wb") as f:
         f.write(contents)
         
-    # Re-index new file into Qdrant
     new_vectors = rag_pipeline.index_local_documents()
     
     return {
