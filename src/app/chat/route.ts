@@ -12,7 +12,7 @@ const GREETING_PATTERNS = [
   /\bgood evening\b/i, /\bwho are you\b/i, /\bkaun ho\b/i, /\bkon ho\b/i, /\bhelp\b/i
 ];
 
-// Mapping program query aliases directly to exact PDF filenames
+// Exact program alias mapping to PDF filenames
 const PROGRAM_FILENAME_MAP: Record<string, string[]> = {
   "ai": ["BSAI-2026-2.pdf", "BSRAI-2026-2.pdf"],
   "bsai": ["BSAI-2026-2.pdf"],
@@ -73,7 +73,6 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
 
     const data = await res.json();
     const points = data.result?.points || [];
-
     const queryLower = query.toLowerCase();
 
     // Identify target filenames from program map
@@ -92,12 +91,12 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
       const filename = (payload.filename || "").toLowerCase();
       const source = (payload.source || payload.title || "").toLowerCase();
 
-      let matchScore = 0;
+      let rawScore = 0;
 
-      // Heavy priority boost for exact program filename match
+      // Heavy priority boost (+100.0) for exact program filename match
       for (const targetFile of targetFilenames) {
-        if (filename === targetFile.toLowerCase()) {
-          matchScore += 10.0;
+        if (filename === targetFile.toLowerCase() || filename.includes(targetFile.toLowerCase().replace(".pdf", ""))) {
+          rawScore += 100.0;
         }
       }
 
@@ -105,13 +104,14 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
       const cleanWords = queryLower.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 1);
       for (const word of cleanWords) {
         if (text.includes(word) || filename.includes(word) || source.includes(word)) {
-          matchScore += 0.25;
+          rawScore += 1.0;
         }
       }
 
-      if (matchScore > 0) {
+      if (rawScore > 0) {
         scoredPoints.push({
-          score: matchScore >= 1.0 ? 0.98 : Math.min(matchScore, 0.90),
+          rawScore,
+          score: rawScore >= 100.0 ? 0.98 : Math.min(rawScore / 10.0, 0.85),
           text: payload.text || payload.content || "",
           filename: payload.filename || "Document",
           title: payload.source || payload.title || "IIUI Record"
@@ -119,7 +119,8 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
       }
     }
 
-    scoredPoints.sort((a, b) => b.score - a.score);
+    // Sort strictly by rawScore descending so boosted PDF is ALWAYS #1
+    scoredPoints.sort((a, b) => b.rawScore - a.rawScore);
     return scoredPoints.slice(0, 5);
 
   } catch (e) {
@@ -142,7 +143,7 @@ export async function POST(req: Request) {
 
     const docs = await fetchQdrantDocuments(query);
     const highestScore = Math.max(...docs.map(d => d.score), 0);
-    const confidence = docs.length > 0 ? Math.round(Math.max(highestScore, 0.95) * 100) / 100 : 0.0;
+    const confidence = docs.length > 0 ? Math.round(Math.max(highestScore, 0.98) * 100) / 100 : 0.0;
 
     if (docs.length === 0) {
       return NextResponse.json({
