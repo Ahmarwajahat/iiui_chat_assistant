@@ -12,14 +12,50 @@ const GREETING_PATTERNS = [
   /\bgood evening\b/i, /\bwho are you\b/i, /\bkaun ho\b/i, /\bkon ho\b/i, /\bhelp\b/i
 ];
 
-// Exact program & portal alias mapping to files
+// Comprehensive category & typo tolerant alias mapping to exact files
 const PROGRAM_FILENAME_MAP: Record<string, string[]> = {
+  // Scholarships & Financial Aid (including common typos)
+  "scholarship": ["iiui_scholarships_policy.md"],
+  "scholarships": ["iiui_scholarships_policy.md"],
+  "scorloship": ["iiui_scholarships_policy.md"],
+  "scolorship": ["iiui_scholarships_policy.md"],
+  "sholership": ["iiui_scholarships_policy.md"],
+  "financial aid": ["iiui_scholarships_policy.md"],
+  "kinship": ["iiui_scholarships_policy.md"],
+  "ehsaas": ["iiui_scholarships_policy.md"],
+  "peef": ["iiui_scholarships_policy.md"],
+  "discount": ["iiui_scholarships_policy.md"],
+
+  // Rules & Academic Regulations
+  "rule": ["iiui_academic_rule_book.md"],
+  "rules": ["iiui_academic_rule_book.md"],
+  "rule book": ["iiui_academic_rule_book.md"],
+  "attendance": ["iiui_academic_rule_book.md"],
+  "cgpa": ["iiui_academic_rule_book.md"],
+  "freeze": ["iiui_academic_rule_book.md"],
+  "grading": ["iiui_academic_rule_book.md"],
+
+  // Hostel & Facilities
+  "hostel": ["iiui_hostels_rules_dues.md"],
+  "hostels": ["iiui_hostels_rules_dues.md"],
+  "curfew": ["iiui_hostels_rules_dues.md"],
+  "mess": ["iiui_hostels_rules_dues.md"],
+
+  // Facilities & Transport
+  "transport": ["iiui_portal_facilities_and_services.md"],
+  "bus": ["iiui_portal_facilities_and_services.md"],
+  "library": ["iiui_portal_facilities_and_services.md"],
+  "cafeteria": ["iiui_portal_facilities_and_services.md"],
+
+  // Portals & Links
   "portal": ["iiui_official_portals_and_links.md", "faqs.md"],
   "student portal": ["iiui_official_portals_and_links.md"],
   "lms": ["iiui_official_portals_and_links.md"],
   "website": ["iiui_official_portals_and_links.md"],
   "link": ["iiui_official_portals_and_links.md"],
   "calendar": ["iiui_academic_calendar_and_events.md", "academic_calendar.md"],
+
+  // Program Fee Documents
   "ai": ["BSAI-2026-2.pdf", "BSRAI-2026-2.pdf"],
   "bsai": ["BSAI-2026-2.pdf"],
   "bs ai": ["BSAI-2026-2.pdf"],
@@ -53,7 +89,7 @@ function isGreeting(query: string): boolean {
 function getGreetingResponse(query: string) {
   return {
     query,
-    answer: "### Welcome to IBADAT International University (IIUI)\n\nWalaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\nI am here to assist you with official university information on:\n- 🎓 **Admissions 2026 Criteria & Required Documents**\n- 🌐 **Student Portal, LMS & Website Links**\n- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n- 🏢 **Hostel Allocation & Semester Dues**\n- 🏛️ **Faculties & Academic Regulations**\n\nHow can I help you with IIUI university information today?\n\n---\n- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan.",
+    answer: "### Welcome to IBADAT International University (IIUI)\n\nWalaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\nI am here to assist you with official university information on:\n- 🎓 **Admissions 2026 Criteria & Required Documents**\n- 💰 **Scholarships & Financial Aid Policies** (Merit, Need-based, Kinship)\n- 🌐 **Student Portal, LMS & Website Links**\n- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n- 🏢 **Hostel Allocation & Semester Dues**\n- 🏛️ **Faculties & Academic Regulations**\n\nHow can I help you with IIUI university information today?\n\n---\n- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan.",
     confidence_score: 1.0,
     sources: [],
     citations: [],
@@ -81,12 +117,17 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
     const points = data.result?.points || [];
     const queryLower = query.toLowerCase();
 
-    // Identify target filenames from program map
+    // Identify target filenames from program & typo map
     const targetFilenames: string[] = [];
     for (const [key, files] of Object.entries(PROGRAM_FILENAME_MAP)) {
       if (queryLower.includes(key)) {
         targetFilenames.push(...files);
       }
+    }
+
+    // Fuzzy check for scholarship queries
+    if (queryLower.includes("scholar") || queryLower.includes("scorl") || queryLower.includes("scol") || queryLower.includes("sholer")) {
+      targetFilenames.push("iiui_scholarships_policy.md");
     }
 
     const scoredPoints: any[] = [];
@@ -99,7 +140,7 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
 
       let rawScore = 0;
 
-      // Heavy priority boost (+100.0) for exact program/portal filename match
+      // Heavy priority boost (+100.0) for target filename match
       for (const targetFile of targetFilenames) {
         if (filename === targetFile.toLowerCase() || filename.includes(targetFile.toLowerCase().replace(/\.(pdf|md)$/, ""))) {
           rawScore += 100.0;
@@ -127,17 +168,6 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
 
     // Sort strictly by rawScore descending
     scoredPoints.sort((a, b) => b.rawScore - a.rawScore);
-
-    // Fallback links if query asks for portal/link directly
-    if (scoredPoints.length === 0 && (queryLower.includes("portal") || queryLower.includes("lms") || queryLower.includes("website") || queryLower.includes("link"))) {
-      scoredPoints.push({
-        rawScore: 100.0,
-        score: 1.0,
-        text: "Official IBADAT International University Portals:\n- Official Website: https://iiui.edu.pk\n- Student Portal & LMS: https://iiui.edu.pk\n- Admission Portal 2026: https://iiui.edu.pk\n- Admission Helpline: +92-51-9019619 | Email: admissions@iiui.edu.pk",
-        filename: "iiui_official_portals_and_links.md",
-        title: "IIUI Official Portals & Useful Links Directory"
-      });
-    }
 
     return scoredPoints.slice(0, 5);
 
@@ -190,14 +220,10 @@ Answer the user's question using ONLY the provided official university context b
 
 STRICT GROUNDING RULES:
 1. Always state the university name correctly as "IBADAT International University, Islamabad (IIUI)".
-2. If the user asks for official links, student portal, LMS, website, or admission portal, provide exact clickable Markdown links:
-   - Official University Website: [https://iiui.edu.pk](https://iiui.edu.pk)
-   - Student Portal & LMS: [https://iiui.edu.pk](https://iiui.edu.pk)
-   - Admission Portal 2026: [https://iiui.edu.pk](https://iiui.edu.pk)
-3. Extract exact figures, fee amounts, seat counts, and semester details from the context.
-4. Present fee structures and numerical details in clean Markdown Tables.
-5. Do NOT hallucinate or guess details not present in the context.
-6. End your response with official contact information:
+2. Extract exact scholarship percentages, merit criteria, fee structures, rules, and portal links from context.
+3. Present scholarship criteria, fee structures, and numerical details in clean Markdown Tables.
+4. Do NOT hallucinate or guess details not present in the context.
+5. End your response with official contact information:
    - Admission Office: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: admissions@iiui.edu.pk | Islamabad, Pakistan.
 
 Context Documents:
@@ -228,7 +254,7 @@ ${contextStr}`;
     }
 
     if (!answer) {
-      answer = `### Official IIUI Record & Portals\n\n${contextStr}`;
+      answer = `### Official IIUI Record\n\n${contextStr}`;
     }
 
     return NextResponse.json({
