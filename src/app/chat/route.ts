@@ -12,6 +12,33 @@ const GREETING_PATTERNS = [
   /\bgood evening\b/i, /\bwho are you\b/i, /\bkaun ho\b/i, /\bkon ho\b/i, /\bhelp\b/i
 ];
 
+// Mapping program query aliases directly to exact PDF filenames
+const PROGRAM_FILENAME_MAP: Record<string, string[]> = {
+  "ai": ["BSAI-2026-2.pdf", "BSRAI-2026-2.pdf"],
+  "bsai": ["BSAI-2026-2.pdf"],
+  "bs ai": ["BSAI-2026-2.pdf"],
+  "artificial intelligence": ["BSAI-2026-2.pdf"],
+  "cs": ["BSCS-2026-2.pdf", "ADP-CS-New-2025-2.pdf", "MS-CS-New-2025-2.pdf"],
+  "bscs": ["BSCS-2026-2.pdf"],
+  "bs cs": ["BSCS-2026-2.pdf"],
+  "computer science": ["BSCS-2026-2.pdf"],
+  "se": ["BSSE-2026-3.pdf", "ADP-SE-New-2025-2.pdf", "MS-SE-New-2025-2.pdf"],
+  "bsse": ["BSSE-2026-3.pdf"],
+  "bs se": ["BSSE-2026-3.pdf"],
+  "software engineering": ["BSSE-2026-3.pdf"],
+  "bba": ["BBA-2025.pdf", "ADP-BBA-2025.pdf"],
+  "pharm": ["Pharm-D-2026-2.pdf", "MPhil-Pharmaceutics-2026-3.pdf"],
+  "pharm-d": ["Pharm-D-2026-2.pdf"],
+  "pharmd": ["Pharm-D-2026-2.pdf"],
+  "pharmacy": ["Pharm-D-2026-2.pdf"],
+  "dpt": ["DPT-2026-2.pdf", "Ph.D-DPT-New-2025-2.pdf"],
+  "llb": ["LLB-2026-2.pdf", "LLM-2026-1.pdf"],
+  "bsn": ["BSN-2026-2.pdf"],
+  "nursing": ["BSN-2026-2.pdf"],
+  "mlt": ["BSMLT-2026-2.pdf"],
+  "bsmlt": ["BSMLT-2026-2.pdf"]
+};
+
 function isGreeting(query: string): boolean {
   const clean = query.trim().toLowerCase();
   return GREETING_PATTERNS.some((pattern) => pattern.test(clean));
@@ -28,7 +55,6 @@ function getGreetingResponse(query: string) {
   };
 }
 
-// Ultra-reliable Qdrant Cloud payload retrieval
 async function fetchQdrantDocuments(query: string): Promise<any[]> {
   try {
     const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/scroll`, {
@@ -49,15 +75,14 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
     const points = data.result?.points || [];
 
     const queryLower = query.toLowerCase();
-    const cleanWords = queryLower.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 1);
-    
-    // Normalize program abbreviations (e.g. bsai -> bs ai, bscs -> bs cs)
-    const expandedWords = [...cleanWords];
-    if (queryLower.includes("bsai") || queryLower.includes("bs-ai")) expandedWords.push("bsai", "bs ai", "ai");
-    if (queryLower.includes("bscs") || queryLower.includes("bs-cs")) expandedWords.push("bscs", "bs cs", "cs");
-    if (queryLower.includes("bsse") || queryLower.includes("bs-se")) expandedWords.push("bsse", "bs se", "se");
-    if (queryLower.includes("pharm") || queryLower.includes("pharm-d")) expandedWords.push("pharm", "dpt");
-    if (queryLower.includes("fee") || queryLower.includes("dues") || queryLower.includes("structure")) expandedWords.push("fee", "structure", "dues", "tuition");
+
+    // Identify target filenames from program map
+    const targetFilenames: string[] = [];
+    for (const [key, files] of Object.entries(PROGRAM_FILENAME_MAP)) {
+      if (queryLower.includes(key)) {
+        targetFilenames.push(...files);
+      }
+    }
 
     const scoredPoints: any[] = [];
 
@@ -68,21 +93,25 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
       const source = (payload.source || payload.title || "").toLowerCase();
 
       let matchScore = 0;
-      for (const word of expandedWords) {
+
+      // Heavy priority boost for exact program filename match
+      for (const targetFile of targetFilenames) {
+        if (filename === targetFile.toLowerCase()) {
+          matchScore += 10.0;
+        }
+      }
+
+      // Keyword match score
+      const cleanWords = queryLower.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 1);
+      for (const word of cleanWords) {
         if (text.includes(word) || filename.includes(word) || source.includes(word)) {
           matchScore += 0.25;
         }
       }
 
-      // Exact filename match boost
-      if (queryLower.includes("bsai") && filename.includes("bsai")) matchScore += 1.0;
-      if (queryLower.includes("bscs") && filename.includes("bscs")) matchScore += 1.0;
-      if (queryLower.includes("bsse") && filename.includes("bsse")) matchScore += 1.0;
-      if (queryLower.includes("fee") && (filename.includes("fee") || text.includes("fee"))) matchScore += 0.5;
-
       if (matchScore > 0) {
         scoredPoints.push({
-          score: Math.min(matchScore, 0.98),
+          score: matchScore >= 1.0 ? 0.98 : Math.min(matchScore, 0.90),
           text: payload.text || payload.content || "",
           filename: payload.filename || "Document",
           title: payload.source || payload.title || "IIUI Record"
@@ -113,7 +142,7 @@ export async function POST(req: Request) {
 
     const docs = await fetchQdrantDocuments(query);
     const highestScore = Math.max(...docs.map(d => d.score), 0);
-    const confidence = docs.length > 0 ? Math.round(Math.max(highestScore, 0.88) * 100) / 100 : 0.0;
+    const confidence = docs.length > 0 ? Math.round(Math.max(highestScore, 0.95) * 100) / 100 : 0.0;
 
     if (docs.length === 0) {
       return NextResponse.json({
