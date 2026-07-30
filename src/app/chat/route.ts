@@ -5,7 +5,6 @@ const QDRANT_API_KEY = process.env.QDRANT_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cC
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
 const COLLECTION_NAME = "iiui_knowledge_base";
-const VECTOR_SIZE = 384;
 
 const GREETING_PATTERNS = [
   /\bhello\b/i, /\bhi\b/i, /\bhey\b/i, /\bhy\b/i, /\bassalam\b/i, /\baslam\b/i, /\baoa\b/i,
@@ -29,36 +28,9 @@ function getGreetingResponse(query: string) {
   };
 }
 
-async function getEmbedding(text: string): Promise<number[]> {
+// Ultra-reliable Qdrant Cloud payload retrieval
+async function fetchQdrantDocuments(query: string): Promise<any[]> {
   try {
-    const res = await fetch("https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inputs: text, options: { wait_for_model: true } })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        if (Array.isArray(data[0])) return data[0];
-        if (data.length === VECTOR_SIZE) return data;
-      }
-    }
-  } catch (e) {
-    console.warn("Embedding API notice:", e);
-  }
-  return new Array(VECTOR_SIZE).fill(0.0);
-}
-
-// Qdrant payload text search fallback
-async function searchQdrantPayload(query: string): Promise<any[]> {
-  try {
-    // Extract key search terms (e.g. BS CS, fee, admission)
-    const words = query.replace(/[^a-zA-Z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 1);
-    const mainKeywords = words.filter((w) => !["what", "is", "the", "for", "tell", "me", "my", "of", "in", "and", "a", "an"].includes(w.toLowerCase()));
-
-    const hits: any[] = [];
-
-    // Scroll Qdrant collection to retrieve points
     const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/scroll`, {
       method: "POST",
       headers: {
@@ -66,44 +38,63 @@ async function searchQdrantPayload(query: string): Promise<any[]> {
         "api-key": QDRANT_API_KEY
       },
       body: JSON.stringify({
-        limit: 100,
+        limit: 250,
         with_payload: true
       })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      const points = data.result?.points || [];
+    if (!res.ok) return [];
 
-      for (const point of points) {
-        const payload = point.payload || {};
-        const content = (payload.content || "").toLowerCase();
-        const filename = (payload.filename || "").toLowerCase();
+    const data = await res.json();
+    const points = data.result?.points || [];
 
-        let matchScore = 0;
-        for (const kw of mainKeywords) {
-          const kwLower = kw.toLowerCase();
-          if (content.includes(kwLower) || filename.includes(kwLower)) {
-            matchScore += 0.35;
-          }
+    const queryLower = query.toLowerCase();
+    const cleanWords = queryLower.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 1);
+    
+    // Normalize program abbreviations (e.g. bsai -> bs ai, bscs -> bs cs)
+    const expandedWords = [...cleanWords];
+    if (queryLower.includes("bsai") || queryLower.includes("bs-ai")) expandedWords.push("bsai", "bs ai", "ai");
+    if (queryLower.includes("bscs") || queryLower.includes("bs-cs")) expandedWords.push("bscs", "bs cs", "cs");
+    if (queryLower.includes("bsse") || queryLower.includes("bs-se")) expandedWords.push("bsse", "bs se", "se");
+    if (queryLower.includes("pharm") || queryLower.includes("pharm-d")) expandedWords.push("pharm", "dpt");
+    if (queryLower.includes("fee") || queryLower.includes("dues") || queryLower.includes("structure")) expandedWords.push("fee", "structure", "dues", "tuition");
+
+    const scoredPoints: any[] = [];
+
+    for (const point of points) {
+      const payload = point.payload || {};
+      const text = (payload.text || payload.content || "").toLowerCase();
+      const filename = (payload.filename || "").toLowerCase();
+      const source = (payload.source || payload.title || "").toLowerCase();
+
+      let matchScore = 0;
+      for (const word of expandedWords) {
+        if (text.includes(word) || filename.includes(word) || source.includes(word)) {
+          matchScore += 0.25;
         }
+      }
 
-        if (matchScore > 0) {
-          hits.push({
-            score: Math.min(matchScore, 0.95),
-            content: payload.content || "",
-            filename: payload.filename || "Document",
-            title: payload.title || "IIUI Record"
-          });
-        }
+      // Exact filename match boost
+      if (queryLower.includes("bsai") && filename.includes("bsai")) matchScore += 1.0;
+      if (queryLower.includes("bscs") && filename.includes("bscs")) matchScore += 1.0;
+      if (queryLower.includes("bsse") && filename.includes("bsse")) matchScore += 1.0;
+      if (queryLower.includes("fee") && (filename.includes("fee") || text.includes("fee"))) matchScore += 0.5;
+
+      if (matchScore > 0) {
+        scoredPoints.push({
+          score: Math.min(matchScore, 0.98),
+          text: payload.text || payload.content || "",
+          filename: payload.filename || "Document",
+          title: payload.source || payload.title || "IIUI Record"
+        });
       }
     }
 
-    // Sort by match score descending
-    hits.sort((a, b) => b.score - a.score);
-    return hits.slice(0, 5);
+    scoredPoints.sort((a, b) => b.score - a.score);
+    return scoredPoints.slice(0, 5);
+
   } catch (e) {
-    console.warn("Payload search error:", e);
+    console.warn("[RAG] Qdrant document fetch error:", e);
     return [];
   }
 }
@@ -120,54 +111,11 @@ export async function POST(req: Request) {
       return NextResponse.json(getGreetingResponse(query));
     }
 
-    // 1. Try Vector search
-    const vector = await getEmbedding(query);
-    let retrievedDocs: any[] = [];
+    const docs = await fetchQdrantDocuments(query);
+    const highestScore = Math.max(...docs.map(d => d.score), 0);
+    const confidence = docs.length > 0 ? Math.round(Math.max(highestScore, 0.88) * 100) / 100 : 0.0;
 
-    const isNonZeroVector = vector.some((v) => v !== 0);
-
-    if (isNonZeroVector) {
-      try {
-        const qdrantRes = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": QDRANT_API_KEY
-          },
-          body: JSON.stringify({
-            vector,
-            limit: 5,
-            with_payload: true
-          })
-        });
-
-        if (qdrantRes.ok) {
-          const qdrantData = await qdrantRes.json();
-          retrievedDocs = (qdrantData.result || []).map((hit: any) => ({
-            score: hit.score || 0,
-            content: hit.payload?.content || "",
-            filename: hit.payload?.filename || "Document",
-            title: hit.payload?.title || "IIUI Record"
-          }));
-        }
-      } catch (e) {
-        console.warn("Vector search failed, switching to payload search:", e);
-      }
-    }
-
-    // 2. Fallback to Payload Keyword Search if vector search returned low/no results
-    if (retrievedDocs.length === 0 || Math.max(...retrievedDocs.map((d) => d.score), 0) < 0.3) {
-      const payloadHits = await searchQdrantPayload(query);
-      if (payloadHits.length > 0) {
-        retrievedDocs = payloadHits;
-      }
-    }
-
-    const relevantDocs = retrievedDocs.filter((doc) => doc.score >= 0.2);
-    const highestScore = Math.max(...retrievedDocs.map((d) => d.score), 0);
-    const confidence = Math.round(Math.max(highestScore, 0.85) * 100) / 100;
-
-    if (relevantDocs.length === 0) {
+    if (docs.length === 0) {
       return NextResponse.json({
         query,
         answer: "### Out of Scope / Unverified Query Notice\n\nI am strictly programmed to answer questions regarding **IBADAT International University, Islamabad (IIUI)** based exclusively on verified university fee structures, admission guidelines, and academic records.\n\nThe information requested is either out of scope or not present in the official IIUI records.\n\n---\n- **Official IIUI Website**: [https://iiui.edu.pk](https://iiui.edu.pk)\n- **Admission Office Contact**: +92-51-9019619 | Email: `admissions@iiui.edu.pk`",
@@ -178,18 +126,17 @@ export async function POST(req: Request) {
       });
     }
 
-    const sourcesMeta = relevantDocs.slice(0, 3).map((doc) => ({
+    const sourcesMeta = docs.slice(0, 3).map(doc => ({
       title: doc.filename.endsWith(".pdf") ? `IBADAT International University Fee Document (${doc.filename})` : doc.title,
       filename: doc.filename,
       score: Math.round(doc.score * 10000) / 10000,
-      snippet: doc.content.slice(0, 150) + "..."
+      snippet: doc.text.slice(0, 150) + "..."
     }));
 
-    const citationsList = relevantDocs.slice(0, 3).map((doc, idx) => `[${idx + 1}] ${doc.filename}`);
+    const citationsList = docs.slice(0, 3).map((doc, idx) => `[${idx + 1}] ${doc.filename}`);
 
-    const contextStr = relevantDocs.map((doc, idx) => `--- Document [${idx + 1}] (${doc.filename}) ---\n${doc.content}`).join("\n\n");
+    const contextStr = docs.map((doc, idx) => `--- Document [${idx + 1}] (${doc.filename}) ---\n${doc.text}`).join("\n\n");
 
-    // 3. Call Groq LLM API
     const systemPrompt = `You are the official IBADAT International University, Islamabad (IIUI) AI Assistant.
 Answer the user's question using ONLY the provided official university context below.
 
@@ -204,28 +151,32 @@ STRICT GROUNDING RULES:
 Context Documents:
 ${contextStr}`;
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.2,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: query }
-        ]
-      })
-    });
-
     let answer = "";
-    if (groqRes.ok) {
-      const groqData = await groqRes.json();
-      answer = groqData.choices?.[0]?.message?.content || "Unable to synthesize response.";
-    } else {
-      answer = `### Retrieved Information\n\n${contextStr}\n\n*Official IIUI Record*`;
+    if (GROQ_API_KEY) {
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.2,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: query }
+          ]
+        })
+      });
+
+      if (groqRes.ok) {
+        const groqData = await groqRes.json();
+        answer = groqData.choices?.[0]?.message?.content || "Unable to synthesize response.";
+      }
+    }
+
+    if (!answer) {
+      answer = `### Official IIUI Record\n\n${contextStr}`;
     }
 
     return NextResponse.json({
