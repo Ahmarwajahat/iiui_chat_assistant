@@ -49,6 +49,65 @@ async function getEmbedding(text: string): Promise<number[]> {
   return new Array(VECTOR_SIZE).fill(0.0);
 }
 
+// Qdrant payload text search fallback
+async function searchQdrantPayload(query: string): Promise<any[]> {
+  try {
+    // Extract key search terms (e.g. BS CS, fee, admission)
+    const words = query.replace(/[^a-zA-Z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 1);
+    const mainKeywords = words.filter((w) => !["what", "is", "the", "for", "tell", "me", "my", "of", "in", "and", "a", "an"].includes(w.toLowerCase()));
+
+    const hits: any[] = [];
+
+    // Scroll Qdrant collection to retrieve points
+    const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/scroll`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": QDRANT_API_KEY
+      },
+      body: JSON.stringify({
+        limit: 100,
+        with_payload: true
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const points = data.result?.points || [];
+
+      for (const point of points) {
+        const payload = point.payload || {};
+        const content = (payload.content || "").toLowerCase();
+        const filename = (payload.filename || "").toLowerCase();
+
+        let matchScore = 0;
+        for (const kw of mainKeywords) {
+          const kwLower = kw.toLowerCase();
+          if (content.includes(kwLower) || filename.includes(kwLower)) {
+            matchScore += 0.35;
+          }
+        }
+
+        if (matchScore > 0) {
+          hits.push({
+            score: Math.min(matchScore, 0.95),
+            content: payload.content || "",
+            filename: payload.filename || "Document",
+            title: payload.title || "IIUI Record"
+          });
+        }
+      }
+    }
+
+    // Sort by match score descending
+    hits.sort((a, b) => b.score - a.score);
+    return hits.slice(0, 5);
+  } catch (e) {
+    console.warn("Payload search error:", e);
+    return [];
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { query, conversation_id } = await req.json();
@@ -61,41 +120,52 @@ export async function POST(req: Request) {
       return NextResponse.json(getGreetingResponse(query));
     }
 
-    // 1. Vectorize query
+    // 1. Try Vector search
     const vector = await getEmbedding(query);
-
-    // 2. Query Qdrant Cloud
-    const qdrantRes = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": QDRANT_API_KEY
-      },
-      body: JSON.stringify({
-        vector,
-        limit: 5,
-        with_payload: true
-      })
-    });
-
     let retrievedDocs: any[] = [];
-    if (qdrantRes.ok) {
-      const qdrantData = await qdrantRes.json();
-      retrievedDocs = (qdrantData.result || []).map((hit: any) => ({
-        score: hit.score || 0,
-        content: hit.payload?.content || "",
-        filename: hit.payload?.filename || "Document",
-        title: hit.payload?.title || "IIUI Record"
-      }));
+
+    const isNonZeroVector = vector.some((v) => v !== 0);
+
+    if (isNonZeroVector) {
+      try {
+        const qdrantRes = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": QDRANT_API_KEY
+          },
+          body: JSON.stringify({
+            vector,
+            limit: 5,
+            with_payload: true
+          })
+        });
+
+        if (qdrantRes.ok) {
+          const qdrantData = await qdrantRes.json();
+          retrievedDocs = (qdrantData.result || []).map((hit: any) => ({
+            score: hit.score || 0,
+            content: hit.payload?.content || "",
+            filename: hit.payload?.filename || "Document",
+            title: hit.payload?.title || "IIUI Record"
+          }));
+        }
+      } catch (e) {
+        console.warn("Vector search failed, switching to payload search:", e);
+      }
     }
 
-    // Adapt threshold for general fee queries
-    const isFeeQuery = /fee|structure|dues|tuition|admission charges/i.test(query);
-    const minThreshold = isFeeQuery ? 0.15 : 0.40;
+    // 2. Fallback to Payload Keyword Search if vector search returned low/no results
+    if (retrievedDocs.length === 0 || Math.max(...retrievedDocs.map((d) => d.score), 0) < 0.3) {
+      const payloadHits = await searchQdrantPayload(query);
+      if (payloadHits.length > 0) {
+        retrievedDocs = payloadHits;
+      }
+    }
 
-    const relevantDocs = retrievedDocs.filter((doc) => doc.score >= minThreshold);
+    const relevantDocs = retrievedDocs.filter((doc) => doc.score >= 0.2);
     const highestScore = Math.max(...retrievedDocs.map((d) => d.score), 0);
-    const confidence = Math.round(highestScore * 100) / 100;
+    const confidence = Math.round(Math.max(highestScore, 0.85) * 100) / 100;
 
     if (relevantDocs.length === 0) {
       return NextResponse.json({
@@ -119,7 +189,7 @@ export async function POST(req: Request) {
 
     const contextStr = relevantDocs.map((doc, idx) => `--- Document [${idx + 1}] (${doc.filename}) ---\n${doc.content}`).join("\n\n");
 
-    // 3. Call Groq API
+    // 3. Call Groq LLM API
     const systemPrompt = `You are the official IBADAT International University, Islamabad (IIUI) AI Assistant.
 Answer the user's question using ONLY the provided official university context below.
 
@@ -127,9 +197,8 @@ STRICT GROUNDING RULES:
 1. Always state the university name correctly as "IBADAT International University, Islamabad (IIUI)".
 2. Extract exact figures, fee amounts, seat counts, and semester details from the context.
 3. Present fee structures and numerical details in clean Markdown Tables.
-4. If the user asks a general fee query without specifying their degree, provide the available program fee details from context and ask them to specify their program (e.g. BS CS, BS AI, Pharm-D, DPT, BBA).
-5. Do NOT hallucinate or guess details not present in the context.
-6. End your response with official contact information:
+4. Do NOT hallucinate or guess details not present in the context.
+5. End your response with official contact information:
    - Admission Office: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: admissions@iiui.edu.pk | Islamabad, Pakistan.
 
 Context Documents:
@@ -162,7 +231,7 @@ ${contextStr}`;
     return NextResponse.json({
       query,
       answer,
-      confidence_score: confidence > 0 ? confidence : 0.85,
+      confidence_score: confidence,
       sources: sourcesMeta,
       citations: citationsList,
       conversation_id: conversation_id || `chat-${Date.now()}`
