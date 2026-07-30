@@ -8,7 +8,11 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
-from sentence_transformers import SentenceTransformer
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
 
 try:
     from langchain_groq import ChatGroq
@@ -44,7 +48,7 @@ class IIUIRAGPipeline:
 
     @property
     def encoder(self):
-        if self._encoder is None:
+        if self._encoder is None and SentenceTransformer is not None:
             try:
                 print("[RAG] Lazy loading SentenceTransformer model ('all-MiniLM-L6-v2')...")
                 self._encoder = SentenceTransformer("all-MiniLM-L6-v2")
@@ -52,282 +56,199 @@ class IIUIRAGPipeline:
                 print(f"[RAG] Error loading encoder: {e}")
         return self._encoder
 
+    def _encode_text(self, text: str) -> List[float]:
+        """Encode text using local SentenceTransformer or fallback REST API."""
+        if self.encoder is not None:
+            return self.encoder.encode(text).tolist()
+        
+        # Fallback to Hugging Face Inference REST API (Zero PyTorch needed in production!)
+        try:
+            import requests
+            api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+            response = requests.post(api_url, json={"inputs": text, "options": {"wait_for_model": True}}, timeout=10)
+            if response.status_code == 200:
+                res = response.json()
+                if isinstance(res, list):
+                    if len(res) > 0 and isinstance(res[0], list):
+                        return res[0]
+                    elif len(res) == VECTOR_SIZE:
+                        return res
+        except Exception as e:
+            print(f"[RAG] Embedding REST API notice: {e}")
+        
+        # Dummy vector fallback if offline
+        return [0.0] * VECTOR_SIZE
+
     def _init_client(self):
         if self.qdrant_url and self.qdrant_api_key:
             try:
                 self.client = QdrantClient(url=self.qdrant_url, api_key=self.qdrant_api_key)
                 print(f"[RAG] Connected to Qdrant Cloud.")
             except Exception as e:
-                print(f"[RAG] Error connecting to Qdrant: {e}")
+                print(f"[RAG] Failed to connect to Qdrant Cloud: {e}")
+        else:
+            print("[RAG] QDRANT_URL or QDRANT_API_KEY missing from environment.")
 
     def _init_llm(self):
         if self.groq_api_key and ChatGroq:
             try:
                 self.llm = ChatGroq(
-                    model="llama-3.3-70b-versatile",
-                    temperature=0.1,  # Low temperature for strict factual accuracy
-                    groq_api_key=self.groq_api_key
+                    temperature=0.2,
+                    groq_api_key=self.groq_api_key,
+                    model_name="llama-3.3-70b-versatile"
                 )
-                print("[RAG] Initialized Groq LLM.")
+                print(f"[RAG] Initialized Groq LLM.")
             except Exception as e:
-                print(f"[RAG] Groq LLM init notice: {e}")
-
-    def ensure_collection(self):
-        if not self.client:
-            return
-        try:
-            collections = [col.name for col in self.client.get_collections().collections]
-            if COLLECTION_NAME not in collections:
-                print(f"[RAG] Creating collection '{COLLECTION_NAME}'...")
-                self.client.create_collection(
-                    collection_name=COLLECTION_NAME,
-                    vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
-                )
-        except Exception as e:
-            print(f"[RAG] Collection check notice: {e}")
-
-    def index_local_documents(self) -> int:
-        """Parses and indexes all markdown files AND all 78 fee structure PDFs into Qdrant."""
-        if not self.client or not self.encoder:
-            return 0
-
-        self.ensure_collection()
-        base_dir = os.path.dirname(os.path.dirname(__file__))
-        docs_dir = os.path.join(base_dir, "task", "docs")
-        scraped_dir = os.path.join(base_dir, "task", "scraped_output")
-        
-        points = []
-        point_id = 1
-
-        # 1. Index Markdown Files
-        md_files = glob.glob(os.path.join(docs_dir, "*.md")) + glob.glob(os.path.join(scraped_dir, "*.md"))
-        for filepath in md_files:
-            filename = os.path.basename(filepath)
-            category = filename.replace(".md", "").replace("_", " ").title()
-            
-            with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            sections = content.split("\n\n")
-            for chunk in sections:
-                chunk = chunk.strip()
-                if len(chunk) > 35:
-                    vector = self.encoder.encode(chunk).tolist()
-                    points.append(
-                        PointStruct(
-                            id=point_id,
-                            vector=vector,
-                            payload={
-                                "filename": filename,
-                                "category": category,
-                                "text": chunk[:1000],
-                                "source": f"IBADAT International University (IIUI) - {category}"
-                            }
-                        )
-                    )
-                    point_id += 1
-
-        # 2. Index all 78 Fee Structure PDFs from scraped_data.json
-        json_path = os.path.join(scraped_dir, "scraped_data.json")
-        if os.path.exists(json_path):
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    scraped_json = json.load(f)
-                
-                pdf_list = scraped_json.get("pdfs", [])
-                for pdf_item in pdf_list:
-                    filename = pdf_item.get("filename", "fee_document.pdf")
-                    pdf_text = pdf_item.get("text", "").strip()
-                    
-                    if pdf_text and len(pdf_text) > 30:
-                        prog_name = filename.replace("-2026-2.pdf", "").replace("-2025.pdf", "").replace("-Fee-Structure", "").replace("_", " ")
-                        formatted_text = f"IBADAT International University Islamabad (IIUI) Fee Document ({filename}):\nProgram / Document: {prog_name}\n\n{pdf_text[:900]}"
-                        
-                        vector = self.encoder.encode(formatted_text).tolist()
-                        points.append(
-                            PointStruct(
-                                id=point_id,
-                                vector=vector,
-                                payload={
-                                    "filename": filename,
-                                    "category": "Fee Structure PDF",
-                                    "text": formatted_text,
-                                    "source": f"IBADAT International University Fee Document ({filename})"
-                                }
-                            )
-                        )
-                        point_id += 1
-            except Exception as e:
-                print(f"[RAG] Error reading scraped_data.json: {e}")
-
-        if points:
-            batch_size = 100
-            for i in range(0, len(points), batch_size):
-                batch = points[i : i + batch_size]
-                self.client.upsert(collection_name=COLLECTION_NAME, points=batch)
-            return len(points)
-        return 0
-
-    def search(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
-        """Vector similarity search in Qdrant Vector DB."""
-        if not self.encoder:
-            return []
-        
-        query_vector = self.encoder.encode(query).tolist()
-
-        if self.client:
-            try:
-                self.ensure_collection()
-                hits = self.client.query_points(
-                    collection_name=COLLECTION_NAME,
-                    query=query_vector,
-                    limit=top_k
-                ).points
-                
-                results = []
-                for hit in hits:
-                    results.append({
-                        "score": round(hit.score, 4),
-                        "id": hit.id,
-                        "text": hit.payload.get("text", ""),
-                        "category": hit.payload.get("category", "General"),
-                        "filename": hit.payload.get("filename", "Doc"),
-                        "source": hit.payload.get("source", "IBADAT International University System")
-                    })
-                return results
-            except Exception as e:
-                print(f"[RAG] Search error in Qdrant: {e}")
-        return []
+                print(f"[RAG] Error initializing Groq LLM: {e}")
+        else:
+            print("[RAG] GROQ_API_KEY missing or langchain_groq not installed.")
 
     def is_greeting(self, query: str) -> bool:
-        """Checks if the query is a basic greeting or introductory question."""
-        q = query.strip().lower()
-        if len(q) < 15:
-            for pattern in GREETING_PATTERNS:
-                if re.search(pattern, q):
-                    return True
+        """Check if query is a basic greeting."""
+        q_clean = query.strip().lower()
+        for pattern in GREETING_PATTERNS:
+            if re.search(pattern, q_clean):
+                return True
         return False
 
+    def get_greeting_response(self) -> Dict[str, Any]:
+        """Return a warm welcome message for basic greetings."""
+        answer = (
+            "### Welcome to IBADAT International University (IIUI)\n\n"
+            "Walaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\n"
+            "I am here to assist you with official university information on:\n"
+            "- 🎓 **Admissions 2026 Criteria & Required Documents**\n"
+            "- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n"
+            "- 🏢 **Hostel Allocation & Semester Dues**\n"
+            "- 🏛️ **Faculties & Academic Regulations**\n\n"
+            "How can I help you with IIUI university information today?\n\n"
+            "---\n"
+            "- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
+        )
+        return {
+            "query": "greeting",
+            "answer": answer,
+            "confidence_score": 1.0,
+            "sources": [],
+            "citations": [],
+            "conversation_id": str(uuid.uuid4())
+        }
+
+    def search(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """Search Qdrant Cloud collection using vector similarity."""
+        if not self.client:
+            print("[RAG] Qdrant client not initialized.")
+            return []
+
+        try:
+            query_vector = self._encode_text(query)
+            search_results = self.client.search(
+                collection_name=COLLECTION_NAME,
+                query_vector=query_vector,
+                limit=top_k
+            )
+
+            docs = []
+            for hit in search_results:
+                docs.append({
+                    "score": hit.score,
+                    "content": hit.payload.get("content", ""),
+                    "filename": hit.payload.get("filename", "Document"),
+                    "title": hit.payload.get("title", "IIUI Record"),
+                    "chunk_index": hit.payload.get("chunk_index", 0)
+                })
+            return docs
+        except Exception as e:
+            print(f"[RAG] Error searching Qdrant: {e}")
+            return []
+
     def answer_query(self, query: str) -> Dict[str, Any]:
-        """Executes strictly grounded RAG workflow with friendly greeting support."""
-        
-        # 1. Handle Basic Greetings (Hello, Assalam-o-Alaikum, etc.)
+        """Process user query and return grounded RAG answer."""
         if self.is_greeting(query):
-            greeting_answer = (
-                "### Welcome to IBADAT International University (IIUI)\n\n"
-                "Walaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\n"
-                "I am here to assist you with official university information on:\n"
-                "- 🎓 **Admissions 2026 Criteria & Required Documents**\n"
-                "- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n"
-                "- 🏢 **Hostel Allocation & Semester Dues**\n"
-                "- 🏛️ **Faculties & Academic Regulations**\n\n"
-                "How can I help you with IIUI university information today?\n\n"
-                "---\n"
-                "- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
-            )
-            return {
-                "query": query,
-                "answer": greeting_answer,
-                "confidence_score": 1.0,
-                "sources": [],
-                "citations": [],
-                "retrieved_count": 0
-            }
+            return self.get_greeting_response()
 
-        # 2. Vector Search in Qdrant DB
         retrieved_docs = self.search(query, top_k=3)
-        relevant_docs = [doc for doc in retrieved_docs if doc["score"] >= MIN_RELEVANCE_SCORE]
+        relevant_docs = [doc for doc in retrieved_docs if doc.get("score", 0.0) >= MIN_RELEVANCE_SCORE]
+        
+        sources_meta = []
+        citations_list = []
+        
+        for idx, doc in enumerate(relevant_docs, 1):
+            sources_meta.append({
+                "title": f"IBADAT International University Fee Document ({doc['filename']})" if doc['filename'].endswith('.pdf') else doc['title'],
+                "filename": doc['filename'],
+                "score": round(doc['score'], 4),
+                "snippet": doc['content'][:150] + "..."
+            })
+            citations_list.append(f"[{idx}] {doc['filename']}")
 
-        # 3. IF no relevant documents found for off-topic queries
+        highest_score = max([d['score'] for d in relevant_docs], default=0.0)
+        confidence = round(highest_score, 2)
+
         if not relevant_docs:
-            out_of_scope_answer = (
-                "### Out of Scope Query\n\n"
-                "I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**, "
-                "trained strictly on official university documentation (fee structures, admissions, hostels, departments, and regulations).\n\n"
-                f"I do not have official university documentation regarding **\"{query}\"** in the records.\n\n"
-                "Please feel free to ask about:\n"
-                "- 🎓 **Admissions 2026 Criteria & Required Documents**\n"
-                "- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n"
-                "- 🏢 **Hostel Accommodation & Dues**\n"
-                "- 🏛️ **Departments & Academic Regulations**\n\n"
+            answer = (
+                "### Out of Scope / Unverified Query Notice\n\n"
+                "I am strictly programmed to answer questions regarding **IBADAT International University, Islamabad (IIUI)** "
+                "based exclusively on verified university fee structures, admission guidelines, and academic records.\n\n"
+                "The information requested is either out of scope or not present in the official IIUI records.\n\n"
                 "---\n"
-                "- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
+                "- **Official IIUI Website**: [https://iiui.edu.pk](https://iiui.edu.pk)\n"
+                "- **Admission Office Contact**: +92-51-9019619 | Email: `admissions@iiui.edu.pk`"
             )
             return {
                 "query": query,
-                "answer": out_of_scope_answer,
+                "answer": answer,
                 "confidence_score": 0.0,
                 "sources": [],
                 "citations": [],
-                "retrieved_count": 0
+                "conversation_id": str(uuid.uuid4())
             }
 
-        top_score = relevant_docs[0]["score"]
-        confidence = min(0.98, max(0.70, round(top_score * 1.18, 2)))
-
         context_blocks = []
-        sources = []
-        citations = []
-
-        for idx, doc in enumerate(relevant_docs, start=1):
-            context_blocks.append(f"[{idx}] (Source: {doc['source']})\n{doc['text'][:800]}")
-            sources.append({
-                "title": doc['source'],
-                "filename": doc["filename"],
-                "score": doc["score"],
-                "snippet": doc["text"][:140] + "..."
-            })
-            citations.append(f"[{idx}] {doc['filename']}")
-
+        for idx, doc in enumerate(relevant_docs, 1):
+            context_blocks.append(f"--- Document [{idx}] ({doc['filename']}) ---\n{doc['content']}")
         context_str = "\n\n".join(context_blocks)
 
-        system_prompt = (
-            "STRICT GROUNDING MANDATE:\n"
-            "You are the official AI Assistant for IBADAT International University, Islamabad (IIUI).\n"
-            "You MUST answer strictly and exclusively based on the retrieved IBADAT International University context provided below.\n"
-            "DO NOT use general world knowledge, personal opinions, or hallucinate information about off-topic subjects (such as restaurants, general food recommendations, weather, external news, etc.).\n"
-            "If the retrieved context does not contain direct information to answer the question, state clearly:\n"
-            "'This specific information is not available in the official IBADAT International University (IIUI) records.'\n\n"
-            "Formatting Rules:\n"
-            "1. Start with a main heading: ### [Topic Title]\n"
-            "2. Group information into clear sub-sections with bold headings (**Item Name**).\n"
-            "3. For fee queries (BS AI, BS CS, Pharm-D, DPT, BBA, Hostels), extract exact numbers (Tuition fee per credit hr, Admission charges, Semester contribution, Exam fee, Total semester fee) and present them using bullet points or a Markdown table.\n"
-            "4. For admission criteria, list eligibility percentage, required intermediate subjects, and test rules.\n"
-            "5. Always end with a divider '---' followed by official contact info:\n"
-            "   - **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan."
-        )
+        prompt_template = """You are the official IBADAT International University, Islamabad (IIUI) AI Assistant.
+Answer the user's question using ONLY the provided official university context below.
 
-        answer_text = ""
-        if self.llm and ChatPromptTemplate:
-            try:
-                prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"{system_prompt}\n\nRetrieved IBADAT International University Context:\n{context_str}"),
-                    ("human", "{query}")
-                ])
+STRICT GROUNDING RULES:
+1. Always state the university name correctly as "IBADAT International University, Islamabad (IIUI)".
+2. Extract exact figures, fee amounts, seat counts, and semester details from the context.
+3. Present fee structures and numerical details in clean Markdown Tables.
+4. Do NOT hallucinate or guess details not present in the context.
+5. End your response with official contact information:
+   - Admission Office: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: admissions@iiui.edu.pk | Islamabad, Pakistan.
+
+Context Documents:
+{context}
+
+User Question: {query}
+"""
+
+        try:
+            if self.llm and ChatPromptTemplate:
+                prompt = ChatPromptTemplate.from_template(prompt_template)
                 chain = prompt | self.llm
-                response = chain.invoke({"query": query})
-                answer_text = response.content.strip()
-            except Exception as e:
-                print(f"[RAG] LLM execution error: {e}")
+                response = chain.invoke({"context": context_str, "query": query})
+                answer = response.content
+            else:
+                answer = f"### Retrieved Information\n\n{context_str}\n\n*Note: Add GROQ_API_KEY for full AI synthesis.*"
 
-        if not answer_text:
-            top_doc = relevant_docs[0]
-            answer_text = (
-                f"### IBADAT International University, Islamabad (IIUI)\n\n"
-                f"Based on IIUI official records for **{top_doc['filename']}**:\n\n"
-                f"{top_doc['text'][:800]}\n\n"
-                f"---\n"
-                f"**Official Admissions Contact:**\n"
-                f"- **University**: IBADAT International University, Islamabad (IIUI)\n"
-                f"- **Phone**: +92-51-9019619 | **Email**: `admissions@iiui.edu.pk`\n"
-                f"- **Campus**: Islamabad, Pakistan"
-            )
+        except Exception as e:
+            print(f"[RAG] Error calling Groq LLM: {e}")
+            answer = f"### Retrieved Context\n\n{context_str}\n\n*(Error generating LLM synthesis: {e})*"
 
         return {
             "query": query,
-            "answer": answer_text,
+            "answer": answer,
             "confidence_score": confidence,
-            "sources": sources,
-            "citations": citations,
-            "retrieved_count": len(relevant_docs)
+            "sources": sources_meta,
+            "citations": citations_list,
+            "conversation_id": str(uuid.uuid4())
         }
+
+if __name__ == "__main__":
+    rag = IIUIRAGPipeline()
+    res = rag.answer_query("Aslam o alikum")
+    print(res["answer"])
