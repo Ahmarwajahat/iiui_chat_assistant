@@ -6,7 +6,7 @@ import {
   ArrowUpRight, CheckCircle2, FileText, Download, FileDown, ShieldCheck, 
   Search, BookOpen, Award
 } from "lucide-react";
-import { sendChatMessage, ChatMessage } from "@/lib/api";
+import { sendChatMessage, ChatMessage } from "../lib/api";
 import jsPDF from "jspdf";
 
 const SUGGESTED_QUESTIONS = [
