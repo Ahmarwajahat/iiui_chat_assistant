@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --iiui-green: #0B6E4F;
+  --iiui-dark-green: #064E3B;
+  --iiui-accent: #10B981;
+  --slate-bg: #F8FAFC;
+  --card-bg: #FFFFFF;
+}
+
+body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Handcrafted Portal Cards */
+.portal-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.portal-card:hover {
+  border-color: #0B6E4F;
+  box-shadow: 0 10px 25px -5px rgba(11, 110, 79, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+/* Bespoke Portal Header Bar */
+.iiui-header-gradient {
+  background: linear-gradient(135deg, #0B6E4F 0%, #064E3B 100%);
+}
+
+/* Clean Custom Markdown Table Styling */
+.markdown-content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1rem 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+.markdown-content th {
+  background-color: #0B6E4F;
+  color: #FFFFFF;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.markdown-content td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  background-color: #FFFFFF;
+  font-size: 0.75rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.markdown-content tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-content tr:nth-child(even) td {
+  background-color: #F8FAFC;
+}
+
+.markdown-content tr:hover td {
+  background-color: rgba(11, 110, 79, 0.04);
+}
+
+/* Minimal Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0B6E4F;
+}
+
+/* Typing Dot Animation */
+@keyframes dot-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #0B6E4F;
+  animation: dot-bounce 1.4s infinite ease-in-out both;
+}
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(3) { animation-delay: 0s; }
