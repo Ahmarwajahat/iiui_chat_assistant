@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export interface ChatMessage {
   id: string;
@@ -16,20 +16,22 @@ export interface ChatMessage {
 }
 
 export async function sendChatMessage(query: string, conversationId?: string) {
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  
   const targetUrls = [
-    API_BASE_URL,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    currentOrigin,
+    "",
     "http://127.0.0.1:8000",
     "http://localhost:8000"
-  ];
+  ].filter((url): url is string => url !== undefined && url !== null);
 
-  // Remove duplicates
   const uniqueUrls = Array.from(new Set(targetUrls));
-
-  let lastError: any = null;
 
   for (const baseUrl of uniqueUrls) {
     try {
-      const response = await fetch(`${baseUrl}/chat`, {
+      const url = baseUrl ? `${baseUrl}/chat` : "/chat";
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,7 +46,6 @@ export async function sendChatMessage(query: string, conversationId?: string) {
         return await response.json();
       }
     } catch (err: any) {
-      lastError = err;
       console.warn(`[API] Failed to connect to ${baseUrl}:`, err);
     }
   }
@@ -52,7 +53,7 @@ export async function sendChatMessage(query: string, conversationId?: string) {
   // Graceful fallback response if API server is offline/unreachable
   return {
     query: query,
-    answer: "### API Server Connection Notice\n\nUnable to reach the **IBADAT International University AI Backend server**.\n\nPlease verify that the Python FastAPI backend process is running on `http://127.0.0.1:8000`:\n```bash\ncd backend\npython server.py\n```\n\nIf deployed to production, please check that `NEXT_PUBLIC_API_BASE_URL` is set in your Vercel Environment Variables.",
+    answer: "### API Server Connection Notice\n\nUnable to reach the **IBADAT International University AI Backend server**.\n\nIf running locally, please verify python server.py is active on `http://127.0.0.1:8000`.\nIf deployed on Vercel, please make sure your backend Web Service URL is set in Vercel Environment Variable `NEXT_PUBLIC_API_BASE_URL`.",
     confidence_score: 0.0,
     sources: [],
     citations: [],
