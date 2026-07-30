@@ -12,8 +12,14 @@ const GREETING_PATTERNS = [
   /\bgood evening\b/i, /\bwho are you\b/i, /\bkaun ho\b/i, /\bkon ho\b/i, /\bhelp\b/i
 ];
 
-// Exact program alias mapping to PDF filenames
+// Exact program & portal alias mapping to files
 const PROGRAM_FILENAME_MAP: Record<string, string[]> = {
+  "portal": ["iiui_official_portals_and_links.md", "faqs.md"],
+  "student portal": ["iiui_official_portals_and_links.md"],
+  "lms": ["iiui_official_portals_and_links.md"],
+  "website": ["iiui_official_portals_and_links.md"],
+  "link": ["iiui_official_portals_and_links.md"],
+  "calendar": ["iiui_academic_calendar_and_events.md", "academic_calendar.md"],
   "ai": ["BSAI-2026-2.pdf", "BSRAI-2026-2.pdf"],
   "bsai": ["BSAI-2026-2.pdf"],
   "bs ai": ["BSAI-2026-2.pdf"],
@@ -47,7 +53,7 @@ function isGreeting(query: string): boolean {
 function getGreetingResponse(query: string) {
   return {
     query,
-    answer: "### Welcome to IBADAT International University (IIUI)\n\nWalaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\nI am here to assist you with official university information on:\n- 🎓 **Admissions 2026 Criteria & Required Documents**\n- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n- 🏢 **Hostel Allocation & Semester Dues**\n- 🏛️ **Faculties & Academic Regulations**\n\nHow can I help you with IIUI university information today?\n\n---\n- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan.",
+    answer: "### Welcome to IBADAT International University (IIUI)\n\nWalaikum Assalam / Hello! I am the official **IBADAT International University, Islamabad (IIUI) AI Assistant**.\n\nI am here to assist you with official university information on:\n- 🎓 **Admissions 2026 Criteria & Required Documents**\n- 🌐 **Student Portal, LMS & Website Links**\n- 💳 **Program Fee Structures** (BS CS, BS AI, Pharm-D, DPT, BBA, etc.)\n- 🏢 **Hostel Allocation & Semester Dues**\n- 🏛️ **Faculties & Academic Regulations**\n\nHow can I help you with IIUI university information today?\n\n---\n- **Admission Office**: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: `admissions@iiui.edu.pk` | Islamabad, Pakistan.",
     confidence_score: 1.0,
     sources: [],
     citations: [],
@@ -93,9 +99,9 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
 
       let rawScore = 0;
 
-      // Heavy priority boost (+100.0) for exact program filename match
+      // Heavy priority boost (+100.0) for exact program/portal filename match
       for (const targetFile of targetFilenames) {
-        if (filename === targetFile.toLowerCase() || filename.includes(targetFile.toLowerCase().replace(".pdf", ""))) {
+        if (filename === targetFile.toLowerCase() || filename.includes(targetFile.toLowerCase().replace(/\.(pdf|md)$/, ""))) {
           rawScore += 100.0;
         }
       }
@@ -119,8 +125,20 @@ async function fetchQdrantDocuments(query: string): Promise<any[]> {
       }
     }
 
-    // Sort strictly by rawScore descending so boosted PDF is ALWAYS #1
+    // Sort strictly by rawScore descending
     scoredPoints.sort((a, b) => b.rawScore - a.rawScore);
+
+    // Fallback links if query asks for portal/link directly
+    if (scoredPoints.length === 0 && (queryLower.includes("portal") || queryLower.includes("lms") || queryLower.includes("website") || queryLower.includes("link"))) {
+      scoredPoints.push({
+        rawScore: 100.0,
+        score: 1.0,
+        text: "Official IBADAT International University Portals:\n- Official Website: https://iiui.edu.pk\n- Student Portal & LMS: https://iiui.edu.pk\n- Admission Portal 2026: https://iiui.edu.pk\n- Admission Helpline: +92-51-9019619 | Email: admissions@iiui.edu.pk",
+        filename: "iiui_official_portals_and_links.md",
+        title: "IIUI Official Portals & Useful Links Directory"
+      });
+    }
+
     return scoredPoints.slice(0, 5);
 
   } catch (e) {
@@ -172,10 +190,14 @@ Answer the user's question using ONLY the provided official university context b
 
 STRICT GROUNDING RULES:
 1. Always state the university name correctly as "IBADAT International University, Islamabad (IIUI)".
-2. Extract exact figures, fee amounts, seat counts, and semester details from the context.
-3. Present fee structures and numerical details in clean Markdown Tables.
-4. Do NOT hallucinate or guess details not present in the context.
-5. End your response with official contact information:
+2. If the user asks for official links, student portal, LMS, website, or admission portal, provide exact clickable Markdown links:
+   - Official University Website: [https://iiui.edu.pk](https://iiui.edu.pk)
+   - Student Portal & LMS: [https://iiui.edu.pk](https://iiui.edu.pk)
+   - Admission Portal 2026: [https://iiui.edu.pk](https://iiui.edu.pk)
+3. Extract exact figures, fee amounts, seat counts, and semester details from the context.
+4. Present fee structures and numerical details in clean Markdown Tables.
+5. Do NOT hallucinate or guess details not present in the context.
+6. End your response with official contact information:
    - Admission Office: IBADAT International University, Islamabad (IIUI) | Phone: +92-51-9019619 | Email: admissions@iiui.edu.pk | Islamabad, Pakistan.
 
 Context Documents:
@@ -206,7 +228,7 @@ ${contextStr}`;
     }
 
     if (!answer) {
-      answer = `### Official IIUI Record\n\n${contextStr}`;
+      answer = `### Official IIUI Record & Portals\n\n${contextStr}`;
     }
 
     return NextResponse.json({
